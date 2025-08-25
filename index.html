@@ -290,6 +290,11 @@
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
+                    
+                    // Update URL to include the data parameter
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.set('data', url);
+                    window.history.replaceState({}, document.title, newUrl);
                 } catch (parseError) {
                     alert('Error parsing JSON from URL: ' + parseError.message);
                 }
