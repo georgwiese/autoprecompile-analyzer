@@ -40,19 +40,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        .stats-table {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .table-row-highlight {
-            background-color: #ffc10755 !important;
-        }
-        
-        .table-row-selected {
-            background-color: #ffc107 !important;
-        }
-
         .bar-highlight {
             stroke: #ffc10755 !important;
             stroke-width: 2 !important;
@@ -68,8 +55,6 @@
             background-color: #f8f9fa;
             border-radius: 5px;
             padding: 15px;
-            max-height: 300px;
-            overflow-y: auto;
         }
 
         .code-line {
@@ -165,28 +150,9 @@
         <!-- Visualization Section (hidden initially) -->
         <div id="vizSection" style="display: none;">
             <div class="row">
-                <div class="col-lg-8">
+                <div class="col-12">
                     <div class="chart-container">
                         <div id="chart"></div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="chart-container">
-                        <h5>Top 10 Basic Blocks by Trace Cells</h5>
-                        <div class="stats-table">
-                            <table class="table table-sm table-hover" id="statsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Start PC</th>
-                                        <th>Trace Cells</th>
-                                        <th>Effectiveness</th>
-                                        <th>Instructions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="statsBody">
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -410,70 +376,24 @@
             const meanEffectiveness = data.reduce((sum, d) => sum + d.effectiveness * d.software_version_cells, 0) / totalCells;
 
             // Update statistics table
-            updateStatsTable(data);
 
             // Create visualization
             createChart(data, totalCells, meanEffectiveness);
-        }
-
-        function updateStatsTable(data) {
-            const top10 = data.slice(0, 10);
-            const tbody = document.getElementById('statsBody');
-            tbody.innerHTML = '';
-
-            top10.forEach((d, index) => {
-                const row = tbody.insertRow();
-                row.setAttribute('data-start-pc', d.start_pc);
-                row.setAttribute('data-index', index);
-                row.style.cursor = 'pointer';
-                row.insertCell(0).textContent = '0x' + d.start_pc.toString(16);
-                row.insertCell(1).textContent = formatCellCount(d.software_version_cells);
-                row.insertCell(2).textContent = d.effectiveness.toFixed(2);
-                row.insertCell(3).textContent = d.instructions;
-
-                // Add hover events for table rows
-                row.addEventListener('mouseenter', () => {
-                    highlightElements(d.start_pc, false);
-                });
-
-                row.addEventListener('mouseleave', () => {
-                    clearHighlights();
-                });
-                
-                // Add click event for selection
-                row.addEventListener('click', () => {
-                    selectBlock(d);
-                });
-            });
         }
 
         function highlightElements(startPc, isHover = true) {
             // Highlight corresponding bar
             d3.selectAll('.bar')
                 .classed('bar-highlight', d => d.start_pc === startPc);
-
-            // Highlight corresponding table row
-            const rows = document.querySelectorAll('#statsBody tr');
-            rows.forEach(row => {
-                if (parseInt(row.getAttribute('data-start-pc')) === startPc) {
-                    row.classList.add('table-row-highlight');
-                }
-            });
         }
 
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
-            document.querySelectorAll('#statsBody tr').forEach(row => {
-                row.classList.remove('table-row-highlight');
-            });
         }
         
         function selectBlock(blockData) {
             // Clear previous selection
             d3.selectAll('.bar').classed('bar-selected', false);
-            document.querySelectorAll('#statsBody tr').forEach(row => {
-                row.classList.remove('table-row-selected');
-            });
             
             // Set new selection
             selectedBlock = blockData;
@@ -482,14 +402,6 @@
                 // Highlight selected bar
                 d3.selectAll('.bar')
                     .classed('bar-selected', d => d.start_pc === blockData.start_pc);
-                
-                // Highlight selected table row
-                const rows = document.querySelectorAll('#statsBody tr');
-                rows.forEach(row => {
-                    if (parseInt(row.getAttribute('data-start-pc')) === blockData.start_pc) {
-                        row.classList.add('table-row-selected');
-                    }
-                });
             }
             
             // Show code for selected block
@@ -553,9 +465,9 @@
             }
 
             // Set dimensions and margins
-            const margin = { top: 40, right: 120, bottom: 60, left: 60 };
-            const width = 800 - margin.left - margin.right;
-            const height = 400 - margin.top - margin.bottom;
+            const margin = { top: 40, right: 120, bottom: 60, left: 80 };
+            const width = 1200 - margin.left - margin.right;
+            const height = 450 - margin.top - margin.bottom;
 
             // Group small blocks (< 0.1% threshold)
             const threshold = totalCells * 0.001;
