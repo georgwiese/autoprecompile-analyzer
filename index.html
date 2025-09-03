@@ -359,7 +359,8 @@
                 software_version_cells: item.width_before * item.execution_frequency,
                 width_before: item.width_before,
                 execution_frequency: item.execution_frequency,
-                statements: item.original_block.statements  // Keep the code statements
+                statements: item.original_block.statements,  // Keep the code statements
+                stats_after: item.stats.after  // Keep APC stats
             }));
 
             // Sort by software_version_cells descending
@@ -415,12 +416,29 @@
             const codeInfo = document.getElementById('codeBlockInfo');
 
             if (blockData.is_other) {
-                codeInfo.innerHTML = `<strong>Other blocks (${blockData.count} APCs grouped)</strong>`;
+                codeInfo.innerHTML = `
+                    <strong>Other blocks (${blockData.count} APCs grouped)</strong><br/>
+                    <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
+                    <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> • 
+                    <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
+                    <span>APC columns (total): ${blockData.stats_after.main_columns || 'N/A'}</span> • 
+                    <span>APC bus interactions (total): ${blockData.stats_after.bus_interactions || 'N/A'}</span> • 
+                    <span>APC constraints (total): ${blockData.stats_after.constraints || 'N/A'}</span>
+                `;
                 codePanel.innerHTML = '<span class="text-muted">Multiple blocks grouped together</span>';
                 return;
             }
 
-            codeInfo.innerHTML = `<strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong> - ${blockData.instructions} instructions`;
+            codeInfo.innerHTML = `
+                <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
+                <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
+                <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> • 
+                <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span> • 
+                <span>Instructions: ${blockData.instructions}</span><br/>
+                <span>APC columns: ${blockData.stats_after.main_columns}</span> • 
+                <span>APC bus interactions: ${blockData.stats_after.bus_interactions}</span> • 
+                <span>APC constraints: ${blockData.stats_after.constraints}</span>
+            `;
 
             if (blockData.statements && blockData.statements.length > 0) {
                 const codeHtml = blockData.statements.map((stmt, idx) =>
@@ -479,13 +497,24 @@
             if (smallBlocks.length > 0) {
                 const otherCells = smallBlocks.reduce((sum, d) => sum + d.software_version_cells, 0);
                 const otherEffectiveness = smallBlocks.reduce((sum, d) => sum + d.effectiveness * d.software_version_cells, 0) / otherCells;
+                const otherExecFreq = smallBlocks.reduce((sum, d) => sum + d.execution_frequency, 0);
+                const otherStatsAfter = smallBlocks.reduce((acc, d) => {
+                    if (d.stats_after) {
+                        acc.main_columns = (acc.main_columns || 0) + d.stats_after.main_columns;
+                        acc.bus_interactions = (acc.bus_interactions || 0) + d.stats_after.bus_interactions;
+                        acc.constraints = (acc.constraints || 0) + d.stats_after.constraints;
+                    }
+                    return acc;
+                }, {});
                 plotData.push({
                     effectiveness: otherEffectiveness,
                     software_version_cells: otherCells,
+                    execution_frequency: otherExecFreq,
                     instructions: -1,
                     is_other: true,
                     count: smallBlocks.length,
-                    statements: []  // No individual statements for grouped blocks
+                    statements: [],  // No individual statements for grouped blocks
+                    stats_after: otherStatsAfter
                 });
             }
 
@@ -559,13 +588,21 @@
                     let content = '';
                     if (d.is_other) {
                         content = `<strong>Other (${d.count} APCs)</strong><br/>
-                                  Cells: ${formatCellCount(d.software_version_cells)}<br/>
-                                  Effectiveness: ${d.effectiveness.toFixed(2)}`;
+                                  Cells (software version): ${formatCellCount(d.software_version_cells)}<br/>
+                                  Execution frequency: ${formatCellCount(d.execution_frequency)}<br/>
+                                  Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
+                                  APC columns (total): ${d.stats_after.main_columns || 'N/A'}<br/>
+                                  APC bus interactions (total): ${d.stats_after.bus_interactions || 'N/A'}<br/>
+                                  APC constraints (total): ${d.stats_after.constraints || 'N/A'}`;
                     } else {
                         content = `<strong>PC: 0x${d.start_pc.toString(16)}</strong><br/>
-                                  Cells: ${formatCellCount(d.software_version_cells)}<br/>
+                                  Cells (software version): ${formatCellCount(d.software_version_cells)}<br/>
+                                  Execution frequency: ${formatCellCount(d.execution_frequency)}<br/>
                                   Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
-                                  Instructions: ${d.instructions}`;
+                                  Instructions: ${d.instructions}<br/>
+                                  APC columns: ${d.stats_after.main_columns}<br/>
+                                  APC bus interactions: ${d.stats_after.bus_interactions}<br/>
+                                  APC constraints: ${d.stats_after.constraints}`;
                     }
 
                     tooltip.html(content)
