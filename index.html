@@ -419,11 +419,9 @@
                 codeInfo.innerHTML = `
                     <strong>Other blocks (${blockData.count} APCs grouped)</strong><br/>
                     <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
-                    <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> • 
+                    <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span><br/>
                     <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
-                    <span>APC columns (total): ${blockData.stats_after.main_columns || 'N/A'}</span> • 
-                    <span>APC bus interactions (total): ${blockData.stats_after.bus_interactions || 'N/A'}</span> • 
-                    <span>APC constraints (total): ${blockData.stats_after.constraints || 'N/A'}</span>
+                    <span>APC size (total): ${blockData.stats_after.main_columns || 0} columns, ${blockData.stats_after.bus_interactions || 0} bus interactions, ${blockData.stats_after.constraints || 0} constraints</span>
                 `;
                 codePanel.innerHTML = '<span class="text-muted">Multiple blocks grouped together</span>';
                 return;
@@ -433,11 +431,9 @@
                 <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
                 <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
                 <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> • 
-                <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span> • 
                 <span>Instructions: ${blockData.instructions}</span><br/>
-                <span>APC columns: ${blockData.stats_after.main_columns}</span> • 
-                <span>APC bus interactions: ${blockData.stats_after.bus_interactions}</span> • 
-                <span>APC constraints: ${blockData.stats_after.constraints}</span>
+                <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
+                <span>APC size: ${blockData.stats_after.main_columns} columns, ${blockData.stats_after.bus_interactions} bus interactions, ${blockData.stats_after.constraints} constraints</span>
             `;
 
             if (blockData.statements && blockData.statements.length > 0) {
@@ -606,8 +602,8 @@
                     }
 
                     tooltip.html(content)
-                        .style('left', (event.pageX + 10) + 'px')
-                        .style('top', (event.pageY - 28) + 'px');
+                        .style('left', (event.pageX - 50) + 'px')
+                        .style('top', (event.pageY + 20) + 'px');
 
                     // Highlight elements (but don't change code on hover if something is selected)
                     if (!d.is_other) {
