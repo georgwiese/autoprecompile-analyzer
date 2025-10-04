@@ -55,15 +55,43 @@
             background-color: #f8f9fa;
             border-radius: 5px;
             padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .code-block {
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+        }
+
+        .code-block-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+            font-size: 12px;
+        }
+
+        .code-block.selected {
+            border-color: #ffc107;
+            background-color: #fff9e6;
+            box-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
         }
 
         .code-line {
             margin: 2px 0;
             padding: 2px 5px;
+            cursor: pointer;
         }
 
         .code-line:hover {
             background-color: #e9ecef;
+        }
+
+        .code-line.highlighted {
+            background-color: #fff3cd;
         }
 
         .tooltip {
@@ -161,12 +189,12 @@
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="chart-container">
-                        <h5>Basic Block Code</h5>
+                        <h5>Program Code</h5>
                         <div class="mb-2">
-                            <span id="codeBlockInfo" class="text-muted">Click on a bar or table row to see the code</span>
+                            <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
                         </div>
                         <div id="codePanel" class="code-panel">
-                            <span class="text-muted">No block selected</span>
+                            <span class="text-muted">No data loaded</span>
                         </div>
                     </div>
                 </div>
@@ -274,8 +302,17 @@
 
         effectivenessType.addEventListener('change', () => {
             if (currentData) {
-                selectedBlock = null;  // Clear selection when changing metric
+                const selectedPc = selectedBlock ? selectedBlock.start_pc : null;
                 updateVisualization();
+
+                // Restore selection if it exists
+                if (selectedPc) {
+                    const data = processData();
+                    const block = data.find(d => d.start_pc === selectedPc);
+                    if (block) {
+                        selectBlock(block);
+                    }
+                }
             }
         });
         
@@ -376,10 +413,11 @@
             // Calculate weighted mean
             const meanEffectiveness = data.reduce((sum, d) => sum + d.effectiveness * d.software_version_cells, 0) / totalCells;
 
-            // Update statistics table
-
             // Create visualization
             createChart(data, totalCells, meanEffectiveness);
+
+            // Show all code in the code panel
+            showAllCode();
         }
 
         function highlightElements(startPc, isHover = true) {
@@ -405,52 +443,105 @@
                     .classed('bar-selected', d => d.start_pc === blockData.start_pc);
             }
             
-            // Show code for selected block
-            showCode(blockData);
+            // Update code panel selection
+            updateCodePanelSelection(blockData);
         }
 
-        function showCode(blockData) {
-            if (!blockData) return;
-            
+        function showAllCode() {
             const codePanel = document.getElementById('codePanel');
+
+            // Get all blocks sorted by start_pc
+            const allBlocks = processData().sort((a, b) => a.start_pc - b.start_pc);
+
+            let codeHtml = '';
+            allBlocks.forEach(block => {
+                if (block.is_other) return; // Skip "Other" grouped blocks
+
+                const blockId = `block-${block.start_pc}`;
+                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cells: ${formatCellCount(block.software_version_cells)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
+
+                const linesHtml = block.statements.map((stmt, idx) =>
+                    `<div class="code-line" data-pc="${block.start_pc}" data-line="${idx}">${escapeHtml(stmt)}</div>`
+                ).join('');
+
+                codeHtml += `
+                    <div class="code-block" id="${blockId}" data-pc="${block.start_pc}">
+                        <div class="code-block-header">${headerText}</div>
+                        ${linesHtml}
+                    </div>
+                `;
+            });
+
+            codePanel.innerHTML = codeHtml;
+
+            // Add click handlers to code lines
+            document.querySelectorAll('.code-line').forEach(line => {
+                line.addEventListener('click', function() {
+                    const pc = parseInt(this.getAttribute('data-pc'));
+                    const blockData = allBlocks.find(b => b.start_pc === pc);
+                    if (blockData) {
+                        selectBlock(blockData);
+                    }
+                });
+            });
+        }
+
+        function updateCodePanelSelection(blockData) {
             const codeInfo = document.getElementById('codeBlockInfo');
+
+            // Remove all previous selections
+            document.querySelectorAll('.code-block').forEach(block => {
+                block.classList.remove('selected');
+            });
+            document.querySelectorAll('.code-line').forEach(line => {
+                line.classList.remove('highlighted');
+            });
+
+            if (!blockData) {
+                codeInfo.innerHTML = '<span class="text-muted">Click on a bar or code line to select a block</span>';
+                return;
+            }
 
             if (blockData.is_other) {
                 codeInfo.innerHTML = `
                     <strong>Other blocks (${blockData.count} APCs grouped)</strong><br/>
-                    <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
+                    <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> •
                     <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span><br/>
                     <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
                     <span>APC size (total): ${blockData.stats_after.main_columns || 0} columns, ${blockData.stats_after.bus_interactions || 0} bus interactions, ${blockData.stats_after.constraints || 0} constraints</span>
                 `;
-                codePanel.innerHTML = '<span class="text-muted">Multiple blocks grouped together</span>';
                 return;
             }
 
             codeInfo.innerHTML = `
                 <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
-                <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> • 
-                <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> • 
+                <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> •
+                <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> •
                 <span>Instructions: ${blockData.instructions}</span><br/>
                 <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
                 <span>APC size: ${blockData.stats_after.main_columns} columns, ${blockData.stats_after.bus_interactions} bus interactions, ${blockData.stats_after.constraints} constraints</span>
             `;
 
-            if (blockData.statements && blockData.statements.length > 0) {
-                const codeHtml = blockData.statements.map((stmt, idx) =>
-                    `<div class="code-line">${(idx + 1).toString().padStart(3, ' ')}: ${escapeHtml(stmt)}</div>`
-                ).join('');
-                codePanel.innerHTML = codeHtml;
-            } else {
-                codePanel.innerHTML = '<span class="text-muted">No code available</span>';
+            // Highlight the selected block
+            const blockElement = document.getElementById(`block-${blockData.start_pc}`);
+            if (blockElement) {
+                blockElement.classList.add('selected');
+
+                // Highlight all lines in this block
+                blockElement.querySelectorAll('.code-line').forEach(line => {
+                    line.classList.add('highlighted');
+                });
+
+                // Scroll the block into view
+                blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
 
         function clearCode() {
             // Only clear if there's no selected block
             if (!selectedBlock) {
-                document.getElementById('codeBlockInfo').innerHTML = '<span class="text-muted">Click on a bar or table row to see the code</span>';
-                document.getElementById('codePanel').innerHTML = '<span class="text-muted">No block selected</span>';
+                document.getElementById('codeBlockInfo').innerHTML = '<span class="text-muted">Click on a bar or code line to select a block</span>';
+                showAllCode();
             }
         }
 
@@ -463,20 +554,6 @@
         function createChart(data, totalCells, meanEffectiveness) {
             // Clear existing chart
             d3.select('#chart').selectAll('*').remove();
-            
-            // Reapply selection if there was one
-            if (selectedBlock) {
-                // Find the block in the new data
-                const stillExists = data.find(d => d.start_pc === selectedBlock.start_pc);
-                if (stillExists) {
-                    // Update selectedBlock with new data
-                    selectedBlock = stillExists;
-                } else {
-                    // Block no longer exists in view, clear selection
-                    selectedBlock = null;
-                    clearCode();
-                }
-            }
 
             // Set dimensions and margins
             const margin = { top: 40, right: 120, bottom: 60, left: 80 };
@@ -624,11 +701,7 @@
                     selectBlock(d);
                 });
             
-            // Restore selection visually if there was one
-            if (selectedBlock) {
-                d3.selectAll('.bar')
-                    .classed('bar-selected', d => d.start_pc === selectedBlock.start_pc);
-            }
+            // Note: Selection is handled in the selectBlock function after chart is created
 
             // Add "Other" label for wide enough other blocks
             plotData.filter(d => d.is_other && d.width > totalCells * 0.02).forEach(d => {
