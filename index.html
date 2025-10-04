@@ -324,7 +324,7 @@
             vizSection.style.display = 'none';
             fileInput.value = '';
             urlInput.value = '';
-            // Clear URL parameter when returning to upload screen
+            // Clear URL parameters when returning to upload screen
             window.history.replaceState({}, document.title, window.location.pathname);
         });
 
@@ -418,6 +418,17 @@
 
             // Show all code in the code panel
             showAllCode();
+
+            // Check for block parameter in URL and select it
+            const urlParams = new URLSearchParams(window.location.search);
+            const blockParam = urlParams.get('block');
+            if (blockParam) {
+                const blockPc = parseInt(blockParam, 16);
+                const block = data.find(d => d.start_pc === blockPc);
+                if (block) {
+                    selectBlock(block);
+                }
+            }
         }
 
         function highlightElements(startPc, isHover = true) {
@@ -433,16 +444,26 @@
         function selectBlock(blockData) {
             // Clear previous selection
             d3.selectAll('.bar').classed('bar-selected', false);
-            
+
             // Set new selection
             selectedBlock = blockData;
-            
+
             if (blockData && !blockData.is_other) {
                 // Highlight selected bar
                 d3.selectAll('.bar')
                     .classed('bar-selected', d => d.start_pc === blockData.start_pc);
+
+                // Update URL with block parameter
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('block', '0x' + blockData.start_pc.toString(16));
+                window.history.replaceState({}, document.title, newUrl);
+            } else {
+                // Clear block parameter if deselecting or selecting "Other"
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('block');
+                window.history.replaceState({}, document.title, newUrl);
             }
-            
+
             // Update code panel selection
             updateCodePanelSelection(blockData);
         }
