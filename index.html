@@ -579,7 +579,7 @@
             // Set dimensions and margins
             const margin = { top: 40, right: 120, bottom: 60, left: 80 };
             const width = 1200 - margin.left - margin.right;
-            const height = 450 - margin.top - margin.bottom;
+            const height = 225 - margin.top - margin.bottom;
 
             // Group small blocks (< 0.1% threshold)
             const threshold = totalCells * 0.001;
@@ -633,8 +633,26 @@
                 .domain([0, totalCells])
                 .range([0, width]);
 
+            // Calculate 99th percentile effectiveness by trace cells
+            // Sort by effectiveness ascending
+            const sortedByEffectiveness = [...plotData].sort((a, b) => a.effectiveness - b.effectiveness);
+
+            // Find the effectiveness value at 99th percentile weighted by trace cells
+            let cumulativeCells = 0;
+            const p99Threshold = totalCells * 0.99;
+            let maxEffectivenessP99 = 0;
+
+            for (const d of sortedByEffectiveness) {
+                cumulativeCells += d.software_version_cells;
+                maxEffectivenessP99 = d.effectiveness;
+                if (cumulativeCells >= p99Threshold) {
+                    break;
+                }
+            }
+
+            // Use 99th percentile for y-axis scaling
             const yScale = d3.scaleLinear()
-                .domain([0, d3.max(plotData, d => d.effectiveness) * 1.1])
+                .domain([0, maxEffectivenessP99 * 1.1])
                 .range([height, 0]);
 
             // Color scale for instructions (log scale)
@@ -668,11 +686,10 @@
                 .enter().append('rect')
                 .attr('class', 'bar')
                 .attr('x', d => xScale(d.x))
-                .attr('y', d => yScale(d.effectiveness))
+                .attr('y', d => Math.max(0, yScale(d.effectiveness)))
                 .attr('width', d => xScale(d.width) - xScale(0))
-                .attr('height', d => height - yScale(d.effectiveness))
+                .attr('height', d => height - Math.max(0, yScale(d.effectiveness)))
                 .style('fill', d => d.is_other ? 'lightgray' : colorScale(d.instructions))
-                .style('cursor', 'pointer')
                 .on('mouseover', function (event, d) {
                     // Show tooltip
                     tooltip.transition()
