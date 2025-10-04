@@ -552,8 +552,10 @@
                     line.classList.add('highlighted');
                 });
 
-                // Scroll the block into view
-                blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Scroll within the code panel only
+                const codePanel = document.getElementById('codePanel');
+                const blockTop = blockElement.offsetTop - codePanel.offsetTop;
+                codePanel.scrollTo({ top: blockTop, behavior: 'smooth' });
             }
         }
 
