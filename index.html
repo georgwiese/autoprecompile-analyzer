@@ -166,7 +166,7 @@
         <div id="controlsSection" class="row mb-4" style="display: none;">
             <div class="col-12">
                 <div class="row align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
                         <select id="effectivenessType" class="form-select">
                             <option value="cost" selected>Cost</option>
@@ -175,7 +175,7 @@
                             <option value="bus_interactions">Bus Interactions</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3 ms-auto">
                         <label for="pcSearch" class="form-label">Block ID:</label>
                         <div class="input-group">
                             <input type="text" id="pcSearch" class="form-control">
@@ -345,7 +345,8 @@
 
             const input = pcSearch.value.trim();
             if (!input) {
-                alert('Please enter a PC address');
+                // Empty input means unselect
+                selectBlock(null);
                 return;
             }
 
