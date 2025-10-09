@@ -165,13 +165,24 @@
         <!-- Controls Section (hidden initially) -->
         <div id="controlsSection" class="row mb-4" style="display: none;">
             <div class="col-12">
-                <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
-                <select id="effectivenessType" class="form-select">
-                    <option value="cost" selected>Cost</option>
-                    <option value="main_columns">Main Columns</option>
-                    <option value="constraints">Constraints</option>
-                    <option value="bus_interactions">Bus Interactions</option>
-                </select>
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
+                        <select id="effectivenessType" class="form-select">
+                            <option value="cost" selected>Cost</option>
+                            <option value="main_columns">Main Columns</option>
+                            <option value="constraints">Constraints</option>
+                            <option value="bus_interactions">Bus Interactions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="pcSearch" class="form-label">Block ID:</label>
+                        <div class="input-group">
+                            <input type="text" id="pcSearch" class="form-control">
+                            <button class="btn btn-primary" id="pcSearchBtn">Go</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -215,6 +226,8 @@
         const vizSection = document.getElementById('vizSection');
         const effectivenessType = document.getElementById('effectivenessType');
         const pageTitle = document.getElementById('pageTitle');
+        const pcSearch = document.getElementById('pcSearch');
+        const pcSearchBtn = document.getElementById('pcSearchBtn');
 
         // Drop zone events
         dropZone.addEventListener('click', () => fileInput.click());
@@ -315,6 +328,56 @@
                 }
             }
         });
+
+        // PC search functionality
+        pcSearchBtn.addEventListener('click', searchForPC);
+        pcSearch.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchForPC();
+            }
+        });
+
+        function searchForPC() {
+            if (!currentData) {
+                alert('Please load data first');
+                return;
+            }
+
+            const input = pcSearch.value.trim();
+            if (!input) {
+                alert('Please enter a PC address');
+                return;
+            }
+
+            // Parse hex (0x...) or decimal
+            let pcValue;
+            if (input.toLowerCase().startsWith('0x')) {
+                pcValue = parseInt(input, 16);
+            } else {
+                pcValue = parseInt(input, 10);
+            }
+
+            if (isNaN(pcValue)) {
+                alert('Invalid PC address. Please enter a valid hex (0x...) or decimal number.');
+                return;
+            }
+
+            // Find the block that contains this PC
+            // Each instruction is 4 bytes, so PC advances by 4
+            const data = processData();
+            const block = data.find(d => {
+                if (d.is_other) return false; // Skip "Other" grouped blocks
+                const startPc = d.start_pc;
+                const endPc = startPc + (d.instructions * 4);
+                return pcValue >= startPc && pcValue < endPc;
+            });
+
+            if (block) {
+                selectBlock(block);
+            } else {
+                alert(`No block found containing PC: 0x${pcValue.toString(16)} (${pcValue})`);
+            }
+        }
         
         pageTitle.addEventListener('click', () => {
             currentData = null;
@@ -457,9 +520,15 @@
 
                 // Update URL with block parameter
                 newUrl.searchParams.set('block', '0x' + blockData.start_pc.toString(16));
+
+                // Update the PC search input field
+                pcSearch.value = '0x' + blockData.start_pc.toString(16);
             } else {
                 // Clear block parameter if deselecting or selecting "Other"
                 newUrl.searchParams.delete('block');
+
+                // Clear the PC search input field
+                pcSearch.value = '';
             }
             window.history.replaceState({}, document.title, newUrl);
 
