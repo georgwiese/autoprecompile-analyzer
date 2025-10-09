@@ -543,8 +543,26 @@
             const allBlocks = processData().sort((a, b) => a.start_pc - b.start_pc);
 
             let codeHtml = '';
-            allBlocks.forEach(block => {
+            allBlocks.forEach((block, index) => {
                 if (block.is_other) return; // Skip "Other" grouped blocks
+
+                // Check for gap between previous block and current block
+                if (index > 0) {
+                    const prevBlock = allBlocks[index - 1];
+                    if (!prevBlock.is_other) {
+                        const prevBlockEnd = prevBlock.start_pc + (prevBlock.instructions * 4);
+                        const gap = block.start_pc - prevBlockEnd;
+                        const missingInstructions = gap / 4;
+
+                        if (missingInstructions > 0) {
+                            codeHtml += `
+                                <div style="padding: 10px; margin: 10px 0; background-color: #f0f0f0; border-left: 3px solid #999; font-style: italic; color: #666;">
+                                    ... ${missingInstructions} instruction${missingInstructions !== 1 ? 's' : ''} not shown (0x${prevBlockEnd.toString(16)} - 0x${(block.start_pc - 4).toString(16)}) ...
+                                </div>
+                            `;
+                        }
+                    }
+                }
 
                 const blockId = `block-${block.start_pc}`;
                 const headerText = `PC: 0x${block.start_pc.toString(16)} | Cells: ${formatCellCount(block.software_version_cells)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
