@@ -215,6 +215,7 @@
 
     <script>
         let currentData = null;
+        let currentLabels = {};
         let chart = null;
         let selectedBlock = null;
 
@@ -292,12 +293,13 @@
                 
                 const text = await response.text();
                 try {
-                    currentData = JSON.parse(text);
+                    const jsonData = JSON.parse(text);
+                    loadData(jsonData);
                     uploadSection.style.display = 'none';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
-                    
+
                     // Update URL to include the data parameter
                     const newUrl = new URL(window.location);
                     newUrl.searchParams.set('data', url);
@@ -382,6 +384,7 @@
         
         pageTitle.addEventListener('click', () => {
             currentData = null;
+            currentLabels = {};
             selectedBlock = null;
             uploadSection.style.display = 'block';
             controlsSection.style.display = 'none';
@@ -412,7 +415,8 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    currentData = JSON.parse(e.target.result);
+                    const jsonData = JSON.parse(e.target.result);
+                    loadData(jsonData);
                     uploadSection.style.display = 'none';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
@@ -422,6 +426,20 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        function loadData(jsonData) {
+            // Backwards compatible: check if it's the new format with "apcs" and "labels" keys
+            if (jsonData && typeof jsonData === 'object' && !Array.isArray(jsonData) &&
+                'apcs' in jsonData && 'labels' in jsonData) {
+                // New format
+                currentData = jsonData.apcs;
+                currentLabels = jsonData.labels;
+            } else {
+                // Old format - assume it's the array of APCs directly
+                currentData = jsonData;
+                currentLabels = {};
+            }
         }
 
         function calculateEffectiveness(item, effType) {
