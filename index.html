@@ -180,6 +180,33 @@
             border-radius: 5px;
         }
 
+        .label-row {
+            position: relative;
+        }
+
+        .expand-icon {
+            display: inline-block;
+            width: 16px;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .blocks-detail-row {
+            background-color: #f8f9fa;
+        }
+
+        .blocks-detail-row td:nth-child(2) {
+            padding-left: 30px !important;
+        }
+
+        .blocks-detail-row:hover {
+            background-color: #e9ecef;
+        }
+
         .code-block {
             border: 1px solid #dee2e6;
             border-radius: 3px;
@@ -722,17 +749,68 @@
             });
 
             // Calculate effectiveness for each label (weighted by cost)
-            const labelArray = Object.values(labelStats).map(stat => ({
-                label: stat.label,
-                pc: stat.pc,
-                traceCells: stat.totalTraceCells,
-                costBefore: stat.totalCostBefore,
-                costAfter: stat.totalCostAfter,
-                effectiveness: stat.totalCostBefore / stat.totalCostAfter,
-                blockCount: stat.blocks.length
-            }));
+            const labelArray = Object.values(labelStats).map(stat => {
+                // Process and sort blocks
+                const processedBlocks = stat.blocks.map(block => ({
+                    pc: block.original_block.start_pc,
+                    traceCells: block.width_before * block.execution_frequency,
+                    effectiveness: calculateEffectiveness(block, effType),
+                    instructions: block.original_block.statements.length
+                }));
+
+                // Sort blocks by the same criteria as the current label sort
+                sortBlocksInLabel(processedBlocks);
+
+                return {
+                    label: stat.label,
+                    pc: stat.pc,
+                    traceCells: stat.totalTraceCells,
+                    costBefore: stat.totalCostBefore,
+                    costAfter: stat.totalCostAfter,
+                    effectiveness: stat.totalCostBefore / stat.totalCostAfter,
+                    blockCount: stat.blocks.length,
+                    blocks: processedBlocks
+                };
+            });
 
             return labelArray;
+        }
+
+        function sortBlocksInLabel(blocks) {
+            // Sort blocks by trace cells (descending) by default
+            blocks.sort((a, b) => {
+                const column = currentLabelSort.column;
+                let aVal, bVal;
+
+                switch(column) {
+                    case 'traceCells':
+                        aVal = a.traceCells;
+                        bVal = b.traceCells;
+                        break;
+                    case 'effectiveness':
+                        aVal = a.effectiveness;
+                        bVal = b.effectiveness;
+                        break;
+                    case 'pc':
+                        aVal = a.pc;
+                        bVal = b.pc;
+                        break;
+                    case 'blockCount':
+                        // For blockCount, sort by traceCells instead
+                        aVal = a.traceCells;
+                        bVal = b.traceCells;
+                        break;
+                    default:
+                        aVal = a.traceCells;
+                        bVal = b.traceCells;
+                }
+
+                if (currentLabelSort.direction === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
         }
 
         let currentLabelSort = { column: 'traceCells', direction: 'desc' };
@@ -790,6 +868,7 @@
                 <table class="table labels-table">
                     <thead>
                         <tr>
+                            <th style="width: 30px;"></th>
                             <th data-column="pc">PC</th>
                             <th data-column="label">Label</th>
                             <th data-column="blockCount">Blocks</th>
@@ -800,9 +879,11 @@
                     <tbody>
             `;
 
-            labelData.forEach(row => {
+            labelData.forEach((row, idx) => {
+                const labelId = `label-${idx}`;
                 tableHtml += `
-                    <tr data-pc="${row.pc}">
+                    <tr class="label-row" data-pc="${row.pc}" data-label-id="${labelId}">
+                        <td><span class="expand-icon">►</span></td>
                         <td>0x${row.pc.toString(16)}</td>
                         <td class="label-cell">${escapeHtml(row.label)}</td>
                         <td>${row.blockCount}</td>
@@ -810,6 +891,20 @@
                         <td>${row.effectiveness.toFixed(2)}</td>
                     </tr>
                 `;
+
+                // Add blocks as separate rows
+                row.blocks.forEach(block => {
+                    tableHtml += `
+                        <tr class="blocks-detail-row" id="${labelId}-detail-${block.pc}" style="display: none;" data-block-pc="${block.pc}" data-label-id="${labelId}">
+                            <td></td>
+                            <td>0x${block.pc.toString(16)}</td>
+                            <td>...</td>
+                            <td>${block.instructions}</td>
+                            <td>${formatCellCount(block.traceCells)}</td>
+                            <td>${block.effectiveness.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
             });
 
             tableHtml += `
@@ -844,10 +939,45 @@
                 });
             });
 
-            // Add click handlers for rows
-            document.querySelectorAll('.labels-table tbody tr').forEach(tr => {
-                tr.addEventListener('click', function() {
+            // Add click handlers for label rows (expand/collapse)
+            document.querySelectorAll('.label-row').forEach(tr => {
+                const expandIcon = tr.querySelector('.expand-icon');
+                const labelId = tr.getAttribute('data-label-id');
+
+                // Click on expand icon or first cell to expand
+                const expandCell = tr.querySelector('td:first-child');
+                expandCell.addEventListener('click', function(e) {
+                    e.stopPropagation();
+
+                    // Find all detail rows for this label
+                    const detailRows = document.querySelectorAll(`[data-label-id="${labelId}"].blocks-detail-row`);
+                    const isExpanded = expandIcon.classList.contains('expanded');
+
+                    if (isExpanded) {
+                        detailRows.forEach(row => row.style.display = 'none');
+                        expandIcon.classList.remove('expanded');
+                    } else {
+                        detailRows.forEach(row => row.style.display = 'table-row');
+                        expandIcon.classList.add('expanded');
+                    }
+                });
+
+                // Click on rest of row to select first block
+                tr.addEventListener('click', function(e) {
+                    if (e.target.closest('td:first-child')) return; // Ignore if clicking expand cell
                     const pc = parseInt(this.getAttribute('data-pc'));
+                    const data = processData();
+                    const block = data.find(d => d.start_pc === pc);
+                    if (block) {
+                        selectBlock(block);
+                    }
+                });
+            });
+
+            // Add click handlers for individual block rows
+            document.querySelectorAll('.blocks-detail-row').forEach(tr => {
+                tr.addEventListener('click', function() {
+                    const pc = parseInt(this.getAttribute('data-block-pc'));
                     const data = processData();
                     const block = data.find(d => d.start_pc === pc);
                     if (block) {
