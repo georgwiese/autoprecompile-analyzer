@@ -66,10 +66,16 @@
             font-family: 'Courier New', monospace;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             display: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
 
         .sticky-label-header.active {
             display: block;
+        }
+
+        .sticky-label-header:hover {
+            background-color: #bbdefb;
         }
 
         .code-panel {
@@ -95,6 +101,83 @@
             font-size: 11px;
             word-break: break-all;
             line-height: 1.4;
+        }
+
+        .labels-table {
+            width: 100%;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .labels-table th {
+            cursor: pointer;
+            user-select: none;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            position: relative;
+        }
+
+        .labels-table th:hover {
+            background-color: #e9ecef;
+        }
+
+        .labels-table th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 10px;
+        }
+
+        .labels-table th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 10px;
+        }
+
+        .labels-table td {
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .labels-table tbody tr {
+            cursor: pointer;
+        }
+
+        .labels-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .label-cell {
+            max-width: 400px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s;
+            font-size: 14px;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .labels-table-wrapper {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
         }
 
         .code-block {
@@ -230,6 +313,23 @@
                 <div class="col-12">
                     <div class="chart-container">
                         <div id="chart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Labels Summary Section -->
+            <div class="row mt-4" id="labelsSummarySection" style="display: none;">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <div class="collapsible-header" id="labelsHeader">
+                            <span class="collapse-icon collapsed">▼</span>
+                            <h5 style="margin: 0;">Labels</h5>
+                        </div>
+                        <div id="labelsContent" style="display: none; margin-top: 10px;">
+                            <div class="labels-table-wrapper">
+                                <div id="labelsTableContainer"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -542,6 +642,9 @@
             // Show all code in the code panel
             showAllCode();
 
+            // Create labels summary table if there are labels
+            createLabelsSummary();
+
             // Check for block parameter in URL and select it
             const urlParams = new URLSearchParams(window.location.search);
             const blockParam = urlParams.get('block');
@@ -552,6 +655,225 @@
                     selectBlock(block);
                 }
             }
+        }
+
+        function aggregateLabelData() {
+            const effType = effectivenessType.value;
+            const labelStats = {};
+
+            // Sort blocks by PC to process them in order
+            const sortedBlocks = [...currentData].sort((a, b) =>
+                a.original_block.start_pc - b.original_block.start_pc
+            );
+
+            // Track current active label(s)
+            let currentActiveLabels = [];
+
+            // Iterate through all blocks in PC order
+            sortedBlocks.forEach(item => {
+                const pcKey = item.original_block.start_pc.toString();
+
+                // Check if this block starts a new label
+                if (currentLabels[pcKey] && currentLabels[pcKey].length > 0) {
+                    currentActiveLabels = currentLabels[pcKey];
+
+                    // Initialize label stats if needed
+                    currentActiveLabels.forEach(label => {
+                        if (!labelStats[label]) {
+                            labelStats[label] = {
+                                label: label,
+                                pc: item.original_block.start_pc,
+                                blocks: [],
+                                totalTraceCells: 0,
+                                totalCostBefore: 0,
+                                totalCostAfter: 0
+                            };
+                        }
+                    });
+                }
+
+                // Assign this block to all current active labels
+                currentActiveLabels.forEach(label => {
+                    labelStats[label].blocks.push(item);
+
+                    // Add trace cells (same as x-axis in chart)
+                    labelStats[label].totalTraceCells += item.width_before * item.execution_frequency;
+
+                    // Aggregate costs based on effectiveness type
+                    switch (effType) {
+                        case 'cost':
+                            labelStats[label].totalCostBefore += item.cost_before;
+                            labelStats[label].totalCostAfter += item.cost_after;
+                            break;
+                        case 'main_columns':
+                            labelStats[label].totalCostBefore += item.stats.before.main_columns;
+                            labelStats[label].totalCostAfter += item.stats.after.main_columns;
+                            break;
+                        case 'constraints':
+                            labelStats[label].totalCostBefore += item.stats.before.constraints;
+                            labelStats[label].totalCostAfter += item.stats.after.constraints;
+                            break;
+                        case 'bus_interactions':
+                            labelStats[label].totalCostBefore += item.stats.before.bus_interactions;
+                            labelStats[label].totalCostAfter += item.stats.after.bus_interactions;
+                            break;
+                    }
+                });
+            });
+
+            // Calculate effectiveness for each label (weighted by cost)
+            const labelArray = Object.values(labelStats).map(stat => ({
+                label: stat.label,
+                pc: stat.pc,
+                traceCells: stat.totalTraceCells,
+                costBefore: stat.totalCostBefore,
+                costAfter: stat.totalCostAfter,
+                effectiveness: stat.totalCostBefore / stat.totalCostAfter,
+                blockCount: stat.blocks.length
+            }));
+
+            return labelArray;
+        }
+
+        let currentLabelSort = { column: 'traceCells', direction: 'desc' };
+
+        function createLabelsSummary() {
+            const labelsSummarySection = document.getElementById('labelsSummarySection');
+            const labelsTableContainer = document.getElementById('labelsTableContainer');
+
+            // Check if there are any labels
+            if (Object.keys(currentLabels).length === 0) {
+                labelsSummarySection.style.display = 'none';
+                return;
+            }
+
+            const labelData = aggregateLabelData();
+
+            if (labelData.length === 0) {
+                labelsSummarySection.style.display = 'none';
+                return;
+            }
+
+            labelsSummarySection.style.display = 'block';
+
+            // Set up collapsible behavior (only once)
+            const labelsHeader = document.getElementById('labelsHeader');
+            const labelsContent = document.getElementById('labelsContent');
+            const collapseIcon = labelsHeader.querySelector('.collapse-icon');
+
+            // Remove old listener if exists and add new one
+            labelsHeader.replaceWith(labelsHeader.cloneNode(true));
+            const newLabelsHeader = document.getElementById('labelsHeader');
+            const newCollapseIcon = newLabelsHeader.querySelector('.collapse-icon');
+
+            newLabelsHeader.addEventListener('click', function() {
+                const content = document.getElementById('labelsContent');
+                const icon = this.querySelector('.collapse-icon');
+
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    icon.classList.remove('collapsed');
+                } else {
+                    content.style.display = 'none';
+                    icon.classList.add('collapsed');
+                }
+            });
+
+            // Sort data
+            sortLabelData(labelData, currentLabelSort.column, currentLabelSort.direction);
+
+            // Get metric name for column header
+            const effType = effectivenessType.options[effectivenessType.selectedIndex].text;
+
+            // Create table
+            let tableHtml = `
+                <table class="table labels-table">
+                    <thead>
+                        <tr>
+                            <th data-column="pc">PC</th>
+                            <th data-column="label">Label</th>
+                            <th data-column="blockCount">Blocks</th>
+                            <th data-column="traceCells">Trace Cells</th>
+                            <th data-column="effectiveness">Effectiveness (${effType})</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            labelData.forEach(row => {
+                tableHtml += `
+                    <tr data-pc="${row.pc}">
+                        <td>0x${row.pc.toString(16)}</td>
+                        <td class="label-cell">${escapeHtml(row.label)}</td>
+                        <td>${row.blockCount}</td>
+                        <td>${formatCellCount(row.traceCells)}</td>
+                        <td>${row.effectiveness.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+
+            labelsTableContainer.innerHTML = tableHtml;
+
+            // Add sort indicators
+            document.querySelectorAll('.labels-table th').forEach(th => {
+                const column = th.getAttribute('data-column');
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (column === currentLabelSort.column) {
+                    th.classList.add(`sorted-${currentLabelSort.direction}`);
+                }
+            });
+
+            // Add click handlers for sorting
+            document.querySelectorAll('.labels-table th').forEach(th => {
+                th.addEventListener('click', function() {
+                    const column = this.getAttribute('data-column');
+                    if (currentLabelSort.column === column) {
+                        // Toggle direction
+                        currentLabelSort.direction = currentLabelSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // New column, default to descending
+                        currentLabelSort.column = column;
+                        currentLabelSort.direction = 'desc';
+                    }
+                    createLabelsSummary();
+                });
+            });
+
+            // Add click handlers for rows
+            document.querySelectorAll('.labels-table tbody tr').forEach(tr => {
+                tr.addEventListener('click', function() {
+                    const pc = parseInt(this.getAttribute('data-pc'));
+                    const data = processData();
+                    const block = data.find(d => d.start_pc === pc);
+                    if (block) {
+                        selectBlock(block);
+                    }
+                });
+            });
+        }
+
+        function sortLabelData(data, column, direction) {
+            data.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+
+                // Special handling for label (case-insensitive string sort)
+                if (column === 'label') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                if (direction === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
         }
 
         function highlightElements(startPc, isHover = true) {
@@ -673,6 +995,28 @@
             updateStickyLabel();
             codePanel.removeEventListener('scroll', updateStickyLabel);
             codePanel.addEventListener('scroll', updateStickyLabel);
+
+            // Set up click handler for sticky header
+            const stickyHeader = document.getElementById('stickyLabelHeader');
+            if (stickyHeader) {
+                stickyHeader.removeEventListener('click', handleStickyLabelClick);
+                stickyHeader.addEventListener('click', handleStickyLabelClick);
+            }
+        }
+
+        function handleStickyLabelClick() {
+            const stickyHeader = document.getElementById('stickyLabelHeader');
+            const pc = stickyHeader.getAttribute('data-pc');
+
+            if (pc) {
+                const pcValue = parseInt(pc);
+                const data = processData();
+                const block = data.find(d => d.start_pc === pcValue);
+
+                if (block) {
+                    selectBlock(block);
+                }
+            }
         }
 
         function updateStickyLabel() {
@@ -688,6 +1032,7 @@
             // Get all blocks and labels
             const elements = codePanel.querySelectorAll('.label-line, .code-block');
             let currentLabels = null;
+            let currentPc = null;
 
             for (let i = 0; i < elements.length; i++) {
                 const element = elements[i];
@@ -703,6 +1048,7 @@
                 if (labelsAttr && labelsAttr !== '""' && labelsAttr !== '') {
                     try {
                         currentLabels = JSON.parse(labelsAttr);
+                        currentPc = element.getAttribute('data-pc');
                     } catch (e) {
                         // Ignore parse errors
                     }
@@ -710,14 +1056,16 @@
             }
 
             // Update sticky header
-            if (currentLabels && currentLabels.length > 0) {
+            if (currentLabels && currentLabels.length > 0 && currentPc) {
                 const labelHtml = currentLabels.map(label =>
                     `<div class="label-name">${escapeHtml(label)}</div>`
                 ).join('');
                 stickyHeader.innerHTML = labelHtml;
+                stickyHeader.setAttribute('data-pc', currentPc);
                 stickyHeader.classList.add('active');
             } else {
                 stickyHeader.classList.remove('active');
+                stickyHeader.removeAttribute('data-pc');
             }
         }
 
@@ -767,8 +1115,10 @@
                     line.classList.add('highlighted');
                 });
 
-                // Scroll to show the block (and its label if it has one)
-                blockElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Scroll within the code panel only, not the whole page
+                const codePanel = document.getElementById('codePanel');
+                const blockTop = blockElement.offsetTop;
+                codePanel.scrollTo({ top: blockTop, behavior: 'smooth' });
             }
         }
 
