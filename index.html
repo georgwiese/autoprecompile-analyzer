@@ -50,6 +50,28 @@
             stroke-width: 4 !important;
         }
 
+        .code-panel-container {
+            position: relative;
+        }
+
+        .sticky-label-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 8px 10px;
+            font-weight: bold;
+            color: #1565c0;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .sticky-label-header.active {
+            display: block;
+        }
+
         .code-panel {
             font-family: 'Courier New', monospace;
             background-color: #f8f9fa;
@@ -57,6 +79,22 @@
             padding: 15px;
             max-height: 500px;
             overflow-y: auto;
+            position: relative;
+        }
+
+        .label-line {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 8px 10px;
+            margin: 15px 0 5px 0;
+            font-weight: bold;
+            color: #1565c0;
+        }
+
+        .label-name {
+            font-size: 11px;
+            word-break: break-all;
+            line-height: 1.4;
         }
 
         .code-block {
@@ -204,8 +242,11 @@
                         <div class="mb-2">
                             <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
                         </div>
-                        <div id="codePanel" class="code-panel">
-                            <span class="text-muted">No data loaded</span>
+                        <div class="code-panel-container">
+                            <div id="stickyLabelHeader" class="sticky-label-header"></div>
+                            <div id="codePanel" class="code-panel">
+                                <span class="text-muted">No data loaded</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -583,6 +624,23 @@
                     }
                 }
 
+                // Check if this block's start_pc has labels
+                const pcKey = block.start_pc.toString();
+                let labelData = '';
+                if (currentLabels[pcKey] && currentLabels[pcKey].length > 0) {
+                    const labels = currentLabels[pcKey];
+                    const labelsHtml = labels.map(label =>
+                        `<div class="label-name">${escapeHtml(label)}</div>`
+                    ).join('');
+                    // Store labels as JSON array to preserve them correctly
+                    labelData = JSON.stringify(labels);
+                    codeHtml += `
+                        <div class="label-line" data-pc="${block.start_pc}" data-labels='${labelData}'>
+                            ${labelsHtml}
+                        </div>
+                    `;
+                }
+
                 const blockId = `block-${block.start_pc}`;
                 const headerText = `PC: 0x${block.start_pc.toString(16)} | Cells: ${formatCellCount(block.software_version_cells)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
 
@@ -591,7 +649,7 @@
                 ).join('');
 
                 codeHtml += `
-                    <div class="code-block" id="${blockId}" data-pc="${block.start_pc}">
+                    <div class="code-block" id="${blockId}" data-pc="${block.start_pc}" data-labels='${labelData}'>
                         <div class="code-block-header">${headerText}</div>
                         ${linesHtml}
                     </div>
@@ -610,6 +668,57 @@
                     }
                 });
             });
+
+            // Set up scroll listener to update sticky header
+            updateStickyLabel();
+            codePanel.removeEventListener('scroll', updateStickyLabel);
+            codePanel.addEventListener('scroll', updateStickyLabel);
+        }
+
+        function updateStickyLabel() {
+            const codePanel = document.getElementById('codePanel');
+            const stickyHeader = document.getElementById('stickyLabelHeader');
+
+            if (!codePanel || !stickyHeader) return;
+
+            // Find the first visible block or label
+            const scrollTop = codePanel.scrollTop;
+            const panelTop = codePanel.getBoundingClientRect().top;
+
+            // Get all blocks and labels
+            const elements = codePanel.querySelectorAll('.label-line, .code-block');
+            let currentLabels = null;
+
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                const elementTop = element.offsetTop;
+
+                // If this element is past our scroll position, use the previous label
+                if (elementTop > scrollTop) {
+                    break;
+                }
+
+                // Check if this element has labels
+                const labelsAttr = element.getAttribute('data-labels');
+                if (labelsAttr && labelsAttr !== '""' && labelsAttr !== '') {
+                    try {
+                        currentLabels = JSON.parse(labelsAttr);
+                    } catch (e) {
+                        // Ignore parse errors
+                    }
+                }
+            }
+
+            // Update sticky header
+            if (currentLabels && currentLabels.length > 0) {
+                const labelHtml = currentLabels.map(label =>
+                    `<div class="label-name">${escapeHtml(label)}</div>`
+                ).join('');
+                stickyHeader.innerHTML = labelHtml;
+                stickyHeader.classList.add('active');
+            } else {
+                stickyHeader.classList.remove('active');
+            }
         }
 
         function updateCodePanelSelection(blockData) {
@@ -658,10 +767,8 @@
                     line.classList.add('highlighted');
                 });
 
-                // Scroll within the code panel only
-                const codePanel = document.getElementById('codePanel');
-                const blockTop = blockElement.offsetTop - codePanel.offsetTop;
-                codePanel.scrollTo({ top: blockTop, behavior: 'smooth' });
+                // Scroll to show the block (and its label if it has one)
+                blockElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
