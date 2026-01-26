@@ -44,7 +44,7 @@
             stroke: #ffc10755 !important;
             stroke-width: 2 !important;
         }
-        
+
         .bar-selected {
             stroke: #ffc107 !important;
             stroke-width: 4 !important;
@@ -64,7 +64,7 @@
             font-weight: bold;
             color: #1565c0;
             font-family: 'Courier New', monospace;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: none;
             cursor: pointer;
             transition: background-color 0.2s;
@@ -302,7 +302,8 @@
                 <div class="mt-3">
                     <div class="input-group">
                         <span class="input-group-text">Or paste URL:</span>
-                        <input type="text" id="urlInput" class="form-control" placeholder="https://example.com/data.json or GitHub link">
+                        <input type="text" id="urlInput" class="form-control"
+                            placeholder="https://example.com/data.json or GitHub link">
                         <button class="btn btn-primary" id="loadUrlBtn">Load from URL</button>
                     </div>
                     <small class="text-muted">Supports direct JSON URLs and GitHub file links</small>
@@ -310,69 +311,87 @@
             </div>
         </div>
 
-        <!-- Controls Section (hidden initially) -->
-        <div id="controlsSection" class="row mb-4" style="display: none;">
-            <div class="col-12">
-                <div class="row align-items-end">
-                    <div class="col-md-3">
-                        <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
-                        <select id="effectivenessType" class="form-select">
-                            <option value="cost" selected>Cost</option>
-                            <option value="main_columns">Main Columns</option>
-                            <option value="constraints">Constraints</option>
-                            <option value="bus_interactions">Bus Interactions</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 ms-auto">
-                        <label for="pcSearch" class="form-label">Block ID:</label>
-                        <div class="input-group">
-                            <input type="text" id="pcSearch" class="form-control">
-                            <button class="btn btn-primary" id="pcSearchBtn">Go</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Visualization Section (hidden initially) -->
-        <div id="vizSection" style="display: none;">
+        <!-- Main App Section (hidden initially) -->
+        <div id="appSection" style="display: none;">
             <div class="row">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <div id="chart"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Labels Summary Section -->
-            <div class="row mt-4" id="labelsSummarySection" style="display: none;">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <div class="collapsible-header" id="labelsHeader">
-                            <span class="collapse-icon collapsed">▼</span>
-                            <h5 style="margin: 0;">Labels</h5>
+                <!-- Left column: plot + labels + code -->
+                <div class="col-12 col-lg-9">
+                    <div id="vizSection">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <div id="chart"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="labelsContent" style="display: none; margin-top: 10px;">
-                            <div class="labels-table-wrapper">
-                                <div id="labelsTableContainer"></div>
+
+                        <!-- Labels Summary Section -->
+                        <div class="row mt-4" id="labelsSummarySection" style="display: none;">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <div class="collapsible-header" id="labelsHeader">
+                                        <span class="collapse-icon collapsed">▼</span>
+                                        <h5 style="margin: 0;">Labels</h5>
+                                    </div>
+                                    <div id="labelsContent" style="display: none; margin-top: 10px;">
+                                        <div class="labels-table-wrapper">
+                                            <div id="labelsTableContainer"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Code Panel Section -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <h5>Program Code</h5>
+                                    <div class="mb-2">
+                                        <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
+                                    </div>
+                                    <div class="code-panel-container">
+                                        <div id="stickyLabelHeader" class="sticky-label-header"></div>
+                                        <div id="codePanel" class="code-panel">
+                                            <span class="text-muted">No data loaded</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Code Panel Section -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <h5>Program Code</h5>
-                        <div class="mb-2">
-                            <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
+                <!-- Right column: controls + value-cost pane -->
+                <div class="col-12 col-lg-3">
+                    <div id="controlsSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
+                                    <select id="effectivenessType" class="form-select">
+                                        <option value="cost" selected>Cost</option>
+                                        <option value="main_columns">Main Columns</option>
+                                        <option value="constraints">Constraints</option>
+                                        <option value="bus_interactions">Bus Interactions</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="pcSearch" class="form-label">Block ID:</label>
+                                    <div class="input-group">
+                                        <input type="text" id="pcSearch" class="form-control">
+                                        <button class="btn btn-primary" id="pcSearchBtn">Go</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="code-panel-container">
-                            <div id="stickyLabelHeader" class="sticky-label-header"></div>
-                            <div id="codePanel" class="code-panel">
-                                <span class="text-muted">No data loaded</span>
+                    </div>
+
+                    <div id="valueCostSection" style="display: none;">
+                        <div class="chart-container">
+                            <h5 style="margin: 0 0 10px 0;">Value-cost plot</h5>
+                            <div id="valueCostContent" style="margin-top: 0;">
+                                <!-- Placeholder for future value-cost visualization -->
                             </div>
                         </div>
                     </div>
@@ -391,6 +410,7 @@
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const uploadSection = document.getElementById('uploadSection');
+        const appSection = document.getElementById('appSection');
         const controlsSection = document.getElementById('controlsSection');
         const vizSection = document.getElementById('vizSection');
         const effectivenessType = document.getElementById('effectivenessType');
@@ -428,7 +448,6 @@
         // URL loading functionality
         const urlInput = document.getElementById('urlInput');
         const loadUrlBtn = document.getElementById('loadUrlBtn');
-
         loadUrlBtn.addEventListener('click', loadFromUrl);
         urlInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -453,17 +472,18 @@
             try {
                 loadUrlBtn.disabled = true;
                 loadUrlBtn.textContent = 'Loading...';
-                
+
                 const response = await fetch(fetchUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const text = await response.text();
                 try {
                     const jsonData = JSON.parse(text);
                     loadData(jsonData);
                     uploadSection.style.display = 'none';
+                    appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
@@ -549,12 +569,13 @@
                 alert(`No block found containing PC: 0x${pcValue.toString(16)} (${pcValue})`);
             }
         }
-        
+
         pageTitle.addEventListener('click', () => {
             currentData = null;
             currentLabels = {};
             selectedBlock = null;
             uploadSection.style.display = 'block';
+            appSection.style.display = 'none';
             controlsSection.style.display = 'none';
             vizSection.style.display = 'none';
             fileInput.value = '';
@@ -567,7 +588,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const dataUrl = urlParams.get('url') || urlParams.get('data');
-            
+
             if (dataUrl) {
                 urlInput.value = dataUrl;
                 loadFromUrl();
@@ -586,6 +607,7 @@
                     const jsonData = JSON.parse(e.target.result);
                     loadData(jsonData);
                     uploadSection.style.display = 'none';
+                    appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
@@ -648,6 +670,8 @@
                 const { before, after } = getMetricValues(item, effType);
                 const metric_before = before * item.execution_frequency;
                 const metric_after = after * item.execution_frequency;
+                const value = (before - after) * item.execution_frequency;
+                const density = after > 0 ? value / after : 0;
                 return {
                     start_pc: item.original_block.start_pc,
                     effectiveness: before / after,
@@ -655,6 +679,9 @@
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
+                    value,
+                    density,
+                    metric_after_raw: after,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
                     statements: item.original_block.statements,  // Keep the code statements
@@ -678,8 +705,10 @@
                 ? data.reduce((sum, d) => sum + d.effectiveness * d.metric_after, 0) / totalAfter
                 : 0;
 
-            // Create visualization
+            // Create visualizations
             createChart(data, totalBefore, meanEffectiveness);
+            setupValueCostPane();
+            createValueCostPlot(data);
 
             // Show all code in the code panel
             showAllCode();
@@ -791,13 +820,101 @@
             return labelArray;
         }
 
+        function setupValueCostPane() {
+            const section = document.getElementById('valueCostSection');
+            const content = document.getElementById('valueCostContent');
+            if (!section || !content) return;
+
+            // Show pane once data is loaded; always expanded
+            section.style.display = 'block';
+            content.style.display = 'block';
+            // Clear old plot content
+            d3.select('#valueCostContent').selectAll('*').remove();
+        }
+
+        function createValueCostPlot(data) {
+            const container = document.getElementById('valueCostContent');
+            if (!container) return;
+            d3.select(container).selectAll('*').remove();
+
+            // Sort by density (value / cost_after)
+            const sorted = [...data].filter(d => d.metric_after_raw > 0).sort((a, b) => b.density - a.density);
+
+            if (sorted.length === 0) {
+                container.innerHTML = '<span class="text-muted">No data available for value-cost plot.</span>';
+                return;
+            }
+
+            // Build cumulative arrays
+            let cumulativeCost = 0;
+            let cumulativeValue = 0;
+            const series = sorted.map(d => {
+                cumulativeCost += d.metric_after_raw;
+                cumulativeValue += d.value;
+                return { x: cumulativeCost, y: cumulativeValue };
+            });
+
+            const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+            const containerWidth = container.clientWidth || 300;
+            const width = containerWidth - margin.left - margin.right;
+            const height = 220 - margin.top - margin.bottom;
+
+            const xScale = d3.scaleLinear()
+                .domain([0, d3.max(series, d => d.x)])
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(series, d => d.y)])
+                .range([height, 0]);
+
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const line = d3.line()
+                .x(d => xScale(d.x))
+                .y(d => yScale(d.y))
+                .curve(d3.curveMonotoneX);
+
+            svg.append('path')
+                .datum(series)
+                .attr('fill', 'none')
+                .attr('stroke', '#0d6efd')
+                .attr('stroke-width', 2)
+                .attr('d', line);
+
+            // Axes
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).ticks(5).tickFormat(formatCellCount));
+
+            svg.append('g')
+                .call(d3.axisLeft(yScale).ticks(5));
+
+            // Labels
+            svg.append('text')
+                .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 5})`)
+                .style('text-anchor', 'middle')
+                .text('Cumulative cost after');
+
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', 0 - margin.left + 15)
+                .attr('x', 0 - (height / 2))
+                .style('text-anchor', 'middle')
+                .text('Cumulative value');
+        }
+
         function sortBlocksInLabel(blocks) {
             // Sort blocks by trace cells (descending) by default
             blocks.sort((a, b) => {
                 const column = currentLabelSort.column;
                 let aVal, bVal;
 
-                switch(column) {
+                switch (column) {
                     case 'traceCells':
                         aVal = a.traceCells;
                         bVal = b.traceCells;
@@ -859,7 +976,7 @@
             const newLabelsHeader = document.getElementById('labelsHeader');
             const newCollapseIcon = newLabelsHeader.querySelector('.collapse-icon');
 
-            newLabelsHeader.addEventListener('click', function() {
+            newLabelsHeader.addEventListener('click', function () {
                 const content = document.getElementById('labelsContent');
                 const icon = this.querySelector('.collapse-icon');
 
@@ -940,7 +1057,7 @@
 
             // Add click handlers for sorting
             document.querySelectorAll('.labels-table th').forEach(th => {
-                th.addEventListener('click', function() {
+                th.addEventListener('click', function () {
                     const column = this.getAttribute('data-column');
                     if (currentLabelSort.column === column) {
                         // Toggle direction
@@ -961,7 +1078,7 @@
 
                 // Click on expand icon or first cell to expand
                 const expandCell = tr.querySelector('td:first-child');
-                expandCell.addEventListener('click', function(e) {
+                expandCell.addEventListener('click', function (e) {
                     e.stopPropagation();
 
                     // Find all detail rows for this label
@@ -978,7 +1095,7 @@
                 });
 
                 // Click on rest of row to select first block
-                tr.addEventListener('click', function(e) {
+                tr.addEventListener('click', function (e) {
                     if (e.target.closest('td:first-child')) return; // Ignore if clicking expand cell
                     const pc = parseInt(this.getAttribute('data-pc'));
                     const data = processData();
@@ -991,7 +1108,7 @@
 
             // Add click handlers for individual block rows
             document.querySelectorAll('.blocks-detail-row').forEach(tr => {
-                tr.addEventListener('click', function() {
+                tr.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-block-pc'));
                     const data = processData();
                     const block = data.find(d => d.start_pc === pc);
@@ -1030,7 +1147,7 @@
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
         }
-        
+
         function selectBlock(blockData) {
             // Clear previous selection
             d3.selectAll('.bar').classed('bar-selected', false);
@@ -1127,7 +1244,7 @@
 
             // Add click handlers to code lines
             document.querySelectorAll('.code-line').forEach(line => {
-                line.addEventListener('click', function() {
+                line.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-pc'));
                     const blockData = allBlocks.find(b => b.start_pc === pc);
                     if (blockData) {
@@ -1287,7 +1404,8 @@
 
             // Set dimensions and margins
             const margin = { top: 40, right: 120, bottom: 60, left: 80 };
-            const width = 1200 - margin.left - margin.right;
+            const containerWidth = document.getElementById('chart').clientWidth || 1200;
+            const width = containerWidth - margin.left - margin.right;
             const height = 225 - margin.top - margin.bottom;
 
             // Group small blocks (< 0.1% threshold)
@@ -1334,7 +1452,7 @@
                 .append('svg')
                 .attr('width', width + margin.left + margin.right)
                 .attr('height', height + margin.top + margin.bottom)
-                .on('click', function(event) {
+                .on('click', function (event) {
                     // If clicking on the background (not a bar), deselect
                     if (event.target.tagName === 'svg') {
                         selectBlock(null);
@@ -1349,7 +1467,7 @@
                 .attr('height', height)
                 .style('fill', 'none')
                 .style('pointer-events', 'all')
-                .on('click', function(event) {
+                .on('click', function (event) {
                     event.stopPropagation();
                     selectBlock(null);
                 });
@@ -1382,9 +1500,11 @@
                 .range([height, 0]);
 
             // Color scale for instructions (log scale)
-            const validInstructions = plotData.filter(d => !d.is_other).map(d => d.instructions);
+            const validInstructions = plotData.filter(d => !d.is_other && d.instructions > 0).map(d => d.instructions);
+            const instrMin = d3.min(validInstructions) || 1;
+            const instrMax = d3.max(validInstructions) || instrMin;
             const colorScale = d3.scaleSequentialLog()
-                .domain([d3.min(validInstructions), d3.max(validInstructions)])
+                .domain([instrMin, instrMax])
                 .interpolator(d3.interpolateRdYlGn);
 
             // Add grid
@@ -1460,12 +1580,12 @@
                     // Clear highlights
                     clearHighlights();
                 })
-                .on('click', function(event, d) {
+                .on('click', function (event, d) {
                     event.stopPropagation();
                     // Select this block on click
                     selectBlock(d);
                 });
-            
+
             // Note: Selection is handled in the selectBlock function after chart is created
 
             // Add "Other" label for wide enough other blocks
@@ -1545,7 +1665,7 @@
                 const legendHeight = 200;
 
                 const legendScale = d3.scaleLinear()
-                    .domain([Math.log10(d3.min(validInstructions)), Math.log10(d3.max(validInstructions))])
+                    .domain([Math.log10(instrMin), Math.log10(instrMax)])
                     .range([legendHeight, 0]);
 
                 const legendAxis = d3.axisRight(legendScale)
@@ -1568,7 +1688,7 @@
                 const steps = 20;
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
-                    const value = d3.min(validInstructions) * Math.pow(d3.max(validInstructions) / d3.min(validInstructions), t);
+                    const value = instrMin * Math.pow(instrMax / instrMin, t);
                     gradient.append('stop')
                         .attr('offset', `${t * 100}%`)
                         .style('stop-color', colorScale(value));
