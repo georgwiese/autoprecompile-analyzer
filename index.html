@@ -322,10 +322,12 @@
                                 <div class="chart-container">
                                     <ul class="nav nav-pills mb-3" id="chartTabs" role="tablist">
                                         <li class="nav-item" role="presentation">
-                                            <button class="nav-link active" id="tab-effectiveness" type="button">Effectiveness</button>
+                                            <button class="nav-link active" id="tab-effectiveness"
+                                                type="button">Effectiveness</button>
                                         </li>
                                         <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="tab-secondary" type="button">Value-cost</button>
+                                            <button class="nav-link" id="tab-secondary"
+                                                type="button">Value-cost</button>
                                         </li>
                                     </ul>
                                     <div id="chartTabEffectiveness">
@@ -361,7 +363,8 @@
                                 <div class="chart-container">
                                     <h5>Program Code</h5>
                                     <div class="mb-2">
-                                        <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
+                                        <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to
+                                            select a block</span>
                                     </div>
                                     <div class="code-panel-container">
                                         <div id="stickyLabelHeader" class="sticky-label-header"></div>
@@ -696,7 +699,7 @@
                 const metric_before = before * item.execution_frequency;
                 const metric_after = after * item.execution_frequency;
                 const value = (before - after) * item.execution_frequency;
-                const density = after > 0 ? value / after : 0;
+                const density = metric_after > 0 ? value / after : 0;
                 return {
                     start_pc: item.original_block.start_pc,
                     effectiveness: before / after,
@@ -704,9 +707,10 @@
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
+                    metric_before_raw: before,
+                    metric_after_raw: after,
                     value,
                     density,
-                    metric_after_raw: after,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
                     statements: item.original_block.statements,  // Keep the code statements
@@ -850,20 +854,20 @@
             d3.select(container).selectAll('*').remove();
 
             // Sort by density (value / cost_after)
-            const sorted = [...data].filter(d => d.metric_after_raw > 0).sort((a, b) => b.density - a.density);
+            const sorted = [...data].sort((a, b) => b.density - a.density);
 
             if (sorted.length === 0) {
                 container.innerHTML = '<span class="text-muted">No data available for value-cost plot.</span>';
                 return;
             }
 
-            // Build cumulative arrays
+            // Build cumulative arrays (cost scaled by execution frequency)
             let cumulativeCost = 0;
             let cumulativeValue = 0;
             const series = sorted.map(d => {
                 cumulativeCost += d.metric_after_raw;
                 cumulativeValue += d.value;
-                return { x: cumulativeCost, y: cumulativeValue };
+                return { x: cumulativeCost, y: cumulativeValue, block: d };
             });
 
             const margin = { top: 20, right: 20, bottom: 40, left: 60 };
@@ -871,8 +875,11 @@
             const width = containerWidth - margin.left - margin.right;
             const height = 220 - margin.top - margin.bottom;
 
-            const xScale = d3.scaleLinear()
-                .domain([0, d3.max(series, d => d.x)])
+            // Avoid log(0): start domain at min positive cost
+            const minCost = d3.min(series, d => d.x) || 1;
+            const maxCost = d3.max(series, d => d.x) || minCost;
+            const xScale = d3.scaleLog()
+                .domain([Math.max(1, minCost), maxCost])
                 .range([0, width]);
 
             const yScale = d3.scaleLinear()
@@ -889,7 +896,7 @@
             const line = d3.line()
                 .x(d => xScale(d.x))
                 .y(d => yScale(d.y))
-                .curve(d3.curveMonotoneX);
+                .curve(d3.curveLinear);
 
             svg.append('path')
                 .datum(series)
@@ -898,10 +905,53 @@
                 .attr('stroke-width', 2)
                 .attr('d', line);
 
+            // Tooltip
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0);
+
+            // Points
+            svg.selectAll('.value-point')
+                .data(series)
+                .enter()
+                .append('circle')
+                .attr('class', 'value-point')
+                .attr('cx', d => xScale(d.x))
+                .attr('cy', d => yScale(d.y))
+                .attr('r', 4)
+                .attr('fill', '#0d6efd')
+                .attr('stroke', 'white')
+                .attr('stroke-width', 1)
+                .on('mouseover', function (event, d) {
+                    d3.select(this).attr('r', 6);
+                    tooltip.transition().duration(200).style('opacity', 0.9);
+                    const b = d.block;
+                    tooltip.html(
+                        `<strong>PC: 0x${b.start_pc.toString(16)}</strong><br/>
+                         Execution frequency: ${formatMetric(b.execution_frequency)}<br/>
+                         Instructions: ${b.instructions}<br/>
+                         Cost (software version): ${formatMetric(b.metric_before)}<br/>
+                         Cost (accelerated): ${formatMetric(b.metric_after)}<br/>
+                         Effectiveness: ${b.effectiveness.toFixed(2)}<br/>
+                         Verifier cost (accelerated): ${formatMetric(b.metric_after_raw)}<br/>
+                         APC size: ${b.stats_after.main_columns} cols, ${b.stats_after.bus_interactions} bus, ${b.stats_after.constraints} constraints`
+                    )
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY + 10) + 'px');
+                })
+                .on('mouseout', function () {
+                    d3.select(this).attr('r', 4);
+                    tooltip.transition().duration(300).style('opacity', 0);
+                })
+                .on('click', function (event, d) {
+                    event.stopPropagation();
+                    selectBlock(d.block);
+                });
+
             // Axes
             svg.append('g')
                 .attr('transform', `translate(0,${height})`)
-                .call(d3.axisBottom(xScale).ticks(5).tickFormat(formatMetric));
+                .call(d3.axisBottom(xScale).ticks(5, "~s"));
 
             svg.append('g')
                 .call(d3.axisLeft(yScale).ticks(5).tickFormat(formatMetric));
@@ -910,7 +960,7 @@
             svg.append('text')
                 .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 5})`)
                 .style('text-anchor', 'middle')
-                .text('Cumulative cost after');
+                .text('Cumulative cost after (log)');
 
             svg.append('text')
                 .attr('transform', 'rotate(-90)')
@@ -1238,7 +1288,7 @@
                 }
 
                 const blockId = `block-${block.start_pc}`;
-                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cells: ${formatMetric(block.software_version_cells)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
+                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cost (software): ${formatMetric(block.metric_before)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
 
                 const linesHtml = block.statements.map((stmt, idx) =>
                     `<div class="code-line" data-pc="${block.start_pc}" data-line="${idx}">${escapeHtml(stmt)}</div>`
@@ -1362,21 +1412,25 @@
             if (blockData.is_other) {
                 codeInfo.innerHTML = `
                     <strong>Other blocks (${blockData.count} APCs grouped)</strong><br/>
-                    <span>Cells (software version): ${formatMetric(blockData.software_version_cells)}</span> •
                     <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span><br/>
+                    <span>Cost (software version): ${formatMetric(blockData.software_version_cells)}</span><br/>
+                    <span>Cost (accelerated): ${formatMetric(blockData.metric_after || 0)}</span><br/>
                     <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
-                    <span>APC size (total): ${blockData.stats_after.main_columns || 0} columns, ${blockData.stats_after.bus_interactions || 0} bus interactions, ${blockData.stats_after.constraints || 0} constraints</span>
+                    <span>Verifier cost (accelerated): n/a</span><br/>
+                    <span>APC size (total): ${blockData.stats_after.main_columns || 0} cols, ${blockData.stats_after.bus_interactions || 0} bus, ${blockData.stats_after.constraints || 0} constraints</span>
                 `;
                 return;
             }
 
             codeInfo.innerHTML = `
                 <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
-                <span>Cells (software version): ${formatMetric(blockData.software_version_cells)}</span> •
-                <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span> •
+                <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span><br/>
                 <span>Instructions: ${blockData.instructions}</span><br/>
+                <span>Cost (software version): ${formatMetric(blockData.metric_before)}</span><br/>
+                <span>Cost (accelerated): ${formatMetric(blockData.metric_after)}</span><br/>
                 <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
-                <span>APC size: ${blockData.stats_after.main_columns} columns, ${blockData.stats_after.bus_interactions} bus interactions, ${blockData.stats_after.constraints} constraints</span>
+                <span>Verifier cost (accelerated): ${formatMetric(blockData.metric_after_raw)}</span><br/>
+                <span>APC size: ${blockData.stats_after.main_columns} cols, ${blockData.stats_after.bus_interactions} bus, ${blockData.stats_after.constraints} constraints</span>
             `;
 
             // Highlight the selected block
@@ -1557,21 +1611,21 @@
                     let content = '';
                     if (d.is_other) {
                         content = `<strong>Other (${d.count} APCs)</strong><br/>
-                                  Cells (software version): ${formatMetric(d.software_version_cells)}<br/>
                                   Execution frequency: ${formatMetric(d.execution_frequency)}<br/>
+                                  Cost (software version): ${formatMetric(d.software_version_cells)}<br/>
+                                  Cost (accelerated): ${formatMetric(d.metric_after || 0)}<br/>
                                   Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
-                                  APC columns (total): ${d.stats_after.main_columns || 'N/A'}<br/>
-                                  APC bus interactions (total): ${d.stats_after.bus_interactions || 'N/A'}<br/>
-                                  APC constraints (total): ${d.stats_after.constraints || 'N/A'}`;
+                                  Verifier cost (accelerated): n/a<br/>
+                                  APC size (total): ${d.stats_after.main_columns || 'N/A'} cols, ${d.stats_after.bus_interactions || 'N/A'} bus, ${d.stats_after.constraints || 'N/A'} constraints`;
                     } else {
                         content = `<strong>PC: 0x${d.start_pc.toString(16)}</strong><br/>
-                                  Cells (software version): ${formatMetric(d.software_version_cells)}<br/>
                                   Execution frequency: ${formatMetric(d.execution_frequency)}<br/>
-                                  Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
                                   Instructions: ${d.instructions}<br/>
-                                  APC columns: ${d.stats_after.main_columns}<br/>
-                                  APC bus interactions: ${d.stats_after.bus_interactions}<br/>
-                                  APC constraints: ${d.stats_after.constraints}`;
+                                  Cost (software version): ${formatMetric(d.metric_before)}<br/>
+                                  Cost (accelerated): ${formatMetric(d.metric_after)}<br/>
+                                  Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
+                                  Verifier cost (accelerated): ${formatMetric(d.metric_after_raw)}<br/>
+                                  APC size: ${d.stats_after.main_columns} cols, ${d.stats_after.bus_interactions} bus, ${d.stats_after.constraints} constraints`;
                     }
 
                     tooltip.html(content)
