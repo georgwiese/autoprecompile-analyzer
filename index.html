@@ -376,6 +376,14 @@
 
                 <!-- Right column: controls -->
                 <div class="col-12 col-lg-3">
+                    <div id="infoSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <h5>Info</h5>
+                            <p class="text-muted small" id="plotInfoText" style="margin-bottom: 0;">
+                            </p>
+                        </div>
+                    </div>
+
                     <div id="controlsSection" class="mb-4" style="display: none;">
                         <div class="chart-container">
                             <div class="row g-3">
@@ -434,6 +442,7 @@
         const tabSecondary = document.getElementById('tab-secondary');
         const chartTabEffectiveness = document.getElementById('chartTabEffectiveness');
         const chartTabSecondary = document.getElementById('chartTabSecondary');
+        const plotInfoText = document.getElementById('plotInfoText');
 
         // Drop zone events
         dropZone.addEventListener('click', () => fileInput.click());
@@ -471,6 +480,7 @@
             tabSecondary.classList.remove('active');
             chartTabEffectiveness.style.display = 'block';
             chartTabSecondary.style.display = 'none';
+            updateInfoText();
         });
 
         tabSecondary.addEventListener('click', () => {
@@ -478,6 +488,7 @@
             tabEffectiveness.classList.remove('active');
             chartTabEffectiveness.style.display = 'none';
             chartTabSecondary.style.display = 'block';
+            updateInfoText();
             if (currentData) {
                 createValueCostPlot(processData());
             }
@@ -612,6 +623,7 @@
             appSection.style.display = 'none';
             controlsSection.style.display = 'none';
             document.getElementById('selectedBlockSection').style.display = 'none';
+            document.getElementById('infoSection').style.display = 'none';
             vizSection.style.display = 'none';
             fileInput.value = '';
             urlInput.value = '';
@@ -628,6 +640,7 @@
                 urlInput.value = dataUrl;
                 loadFromUrl();
             }
+            updateInfoText();
         });
 
         function handleFile(file) {
@@ -667,7 +680,9 @@
             }
             // Show right-side panes when data is loaded
             document.getElementById('selectedBlockSection').style.display = 'block';
+            document.getElementById('infoSection').style.display = 'block';
             controlsSection.style.display = 'block';
+            updateInfoText();
         }
 
         function getMetricValues(item, effType) {
@@ -1259,6 +1274,16 @@
 
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
+        }
+
+        function updateInfoText() {
+            if (!plotInfoText) return;
+            const showingEffectiveness = chartTabSecondary.style.display === 'none';
+            if (showingEffectiveness) {
+                plotInfoText.innerHTML = 'The plot shows each basic block, sorted the proving cost it causes in the software execution:<br>• The <strong>width</strong> corresponds to its cost before acceleration.<br>• The <strong>height</strong> shows the factor by which the cost is reduced after acceleration.';
+            } else {
+                plotInfoText.innerHTML = 'The plot shows the trade-off between added verifier cost and saved proving cost for accelerating basic blocks:<br>• The <strong>x-axis</strong> shows the cumulative verifier cost of accelerated blocks. APCs are added by decreasing density, i.e., the saved proving cost divided by the added verification cost.<br>• The <strong>y-axis</strong> shows the cumulative saved cost achieved by accelerating those blocks.';
+            }
         }
 
         function updateValueCostPointStyles() {
