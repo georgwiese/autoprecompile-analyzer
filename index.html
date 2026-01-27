@@ -865,7 +865,7 @@
             let cumulativeCost = 0;
             let cumulativeValue = 0;
             const series = sorted.map(d => {
-                cumulativeCost += d.metric_after; // cost_after * execution_frequency
+                cumulativeCost += d.metric_after_raw;
                 cumulativeValue += d.value;
                 return { x: cumulativeCost, y: cumulativeValue, block: d };
             });
@@ -1001,14 +1001,14 @@
             svg.append('text')
                 .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 5})`)
                 .style('text-anchor', 'middle')
-                .text('Cumulative cost after (log)');
+                .text('Cumulative verifier cost (log)');
 
             svg.append('text')
                 .attr('transform', 'rotate(-90)')
                 .attr('y', 0 - margin.left + 15)
                 .attr('x', 0 - (height / 2))
                 .style('text-anchor', 'middle')
-                .text('Cumulative value');
+                .text('Saved cost');
         }
 
         function sortBlocksInLabel(blocks) {
@@ -1250,11 +1250,11 @@
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
         }
-        
+
         function updateValueCostPointStyles() {
             const baseColor = '#0d6efd';
             const selectedColor = '#d32f2f';
-            d3.selectAll('.value-point').each(function(d) {
+            d3.selectAll('.value-point').each(function (d) {
                 const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
                 d3.select(this)
                     .attr('fill', isSelected ? selectedColor : baseColor)
