@@ -426,6 +426,8 @@
         let currentLabels = {};
         let chart = null;
         let selectedBlock = null;
+        let lastData = null;
+        let lastMeanEffectiveness = null;
 
         // File handling
         const dropZone = document.getElementById('dropZone');
@@ -481,6 +483,12 @@
             chartTabEffectiveness.style.display = 'block';
             chartTabSecondary.style.display = 'none';
             updateInfoText();
+            if (lastData) {
+                const totalBefore = lastData.reduce((sum, d) => sum + d.metric_before, 0);
+                createChart(lastData, totalBefore, lastMeanEffectiveness || 0);
+            } else if (currentData) {
+                updateVisualization();
+            }
             const newUrl = new URL(window.location);
             newUrl.searchParams.delete('plot');
             window.history.replaceState({}, document.title, newUrl);
@@ -492,7 +500,9 @@
             chartTabEffectiveness.style.display = 'none';
             chartTabSecondary.style.display = 'block';
             updateInfoText();
-            if (currentData) {
+            if (lastData) {
+                createValueCostPlot(lastData);
+            } else if (currentData) {
                 createValueCostPlot(processData());
             }
             const newUrl = new URL(window.location);
@@ -770,9 +780,14 @@
                 ? data.reduce((sum, d) => sum + d.effectiveness * d.metric_after, 0) / totalAfter
                 : 0;
 
+            lastData = data;
+            lastMeanEffectiveness = meanEffectiveness;
+
             // Create visualizations
             createChart(data, totalBefore, meanEffectiveness);
-            createValueCostPlot(data);
+            if (chartTabSecondary.style.display !== 'none') {
+                createValueCostPlot(data);
+            }
 
             // Show all code in the code panel
             showAllCode();
