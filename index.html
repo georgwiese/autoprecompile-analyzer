@@ -865,10 +865,11 @@
             let cumulativeCost = 0;
             let cumulativeValue = 0;
             const series = sorted.map(d => {
-                cumulativeCost += d.metric_after_raw;
+                cumulativeCost += d.metric_after; // cost_after * execution_frequency
                 cumulativeValue += d.value;
                 return { x: cumulativeCost, y: cumulativeValue, block: d };
             });
+            const totalSoftwareCost = data.reduce((sum, d) => sum + d.metric_before, 0);
 
             const margin = { top: 20, right: 20, bottom: 40, left: 60 };
             const containerWidth = container.clientWidth || 300;
@@ -883,7 +884,7 @@
                 .range([0, width]);
 
             const yScale = d3.scaleLinear()
-                .domain([0, d3.max(series, d => d.y)])
+                .domain([0, Math.max(d3.max(series, d => d.y), totalSoftwareCost)])
                 .range([height, 0]);
 
             const svg = d3.select(container)
@@ -898,6 +899,15 @@
                 .y(d => yScale(d.y))
                 .curve(d3.curveLinear);
 
+            // Background for deselect on click (send behind everything)
+            svg.append('rect')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('fill', 'transparent')
+                .attr('pointer-events', 'all')
+                .on('click', () => selectBlock(null))
+                .lower();
+
             svg.append('path')
                 .datum(series)
                 .attr('fill', 'none')
@@ -905,13 +915,25 @@
                 .attr('stroke-width', 2)
                 .attr('d', line);
 
-            // Background for deselect on click
-            svg.append('rect')
-                .attr('width', width)
-                .attr('height', height)
-                .attr('fill', 'transparent')
-                .attr('pointer-events', 'all')
-                .on('click', () => selectBlock(null));
+            // Horizontal line at cumulative software cost (upper bound)
+            if (totalSoftwareCost > 0) {
+                svg.append('line')
+                    .attr('x1', 0)
+                    .attr('x2', width)
+                    .attr('y1', yScale(totalSoftwareCost))
+                    .attr('y2', yScale(totalSoftwareCost))
+                    .attr('stroke', '#888')
+                    .attr('stroke-dasharray', '4 4')
+                    .attr('stroke-width', 1.5);
+
+                svg.append('text')
+                    .attr('x', width - 5)
+                    .attr('y', yScale(totalSoftwareCost) - 6)
+                    .attr('text-anchor', 'end')
+                    .style('fill', '#666')
+                    .style('font-size', '11px')
+                    .text(`Software cost: ${formatMetric(totalSoftwareCost)}`);
+            }
 
             // Tooltip
             const tooltip = d3.select('body').append('div')
