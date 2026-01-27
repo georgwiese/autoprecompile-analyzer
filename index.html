@@ -905,10 +905,22 @@
                 .attr('stroke-width', 2)
                 .attr('d', line);
 
+            // Background for deselect on click
+            svg.append('rect')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('fill', 'transparent')
+                .attr('pointer-events', 'all')
+                .on('click', () => selectBlock(null));
+
             // Tooltip
             const tooltip = d3.select('body').append('div')
                 .attr('class', 'tooltip')
                 .style('opacity', 0);
+
+            const baseColor = '#0d6efd';
+            const hoverColor = '#0b5ed7';
+            const selectedColor = '#d32f2f';
 
             // Points
             svg.selectAll('.value-point')
@@ -919,11 +931,15 @@
                 .attr('cx', d => xScale(d.x))
                 .attr('cy', d => yScale(d.y))
                 .attr('r', 4)
-                .attr('fill', '#0d6efd')
-                .attr('stroke', 'white')
+                .attr('fill', baseColor)
+                .attr('stroke', baseColor)
                 .attr('stroke-width', 1)
                 .on('mouseover', function (event, d) {
-                    d3.select(this).attr('r', 6);
+                    const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                    d3.select(this)
+                        .attr('r', 7)
+                        .attr('fill', isSelected ? selectedColor : hoverColor)
+                        .attr('stroke', isSelected ? selectedColor : hoverColor);
                     tooltip.transition().duration(200).style('opacity', 0.9);
                     const b = d.block;
                     tooltip.html(
@@ -940,13 +956,16 @@
                         .style('top', (event.pageY + 10) + 'px');
                 })
                 .on('mouseout', function () {
-                    d3.select(this).attr('r', 4);
                     tooltip.transition().duration(300).style('opacity', 0);
+                    updateValueCostPointStyles();
                 })
                 .on('click', function (event, d) {
                     event.stopPropagation();
                     selectBlock(d.block);
                 });
+
+            // Apply selection styling initially
+            updateValueCostPointStyles();
 
             // Axes
             svg.append('g')
@@ -1209,6 +1228,19 @@
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
         }
+        
+        function updateValueCostPointStyles() {
+            const baseColor = '#0d6efd';
+            const selectedColor = '#d32f2f';
+            d3.selectAll('.value-point').each(function(d) {
+                const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                d3.select(this)
+                    .attr('fill', isSelected ? selectedColor : baseColor)
+                    .attr('stroke', isSelected ? selectedColor : baseColor)
+                    .attr('stroke-width', 1)
+                    .attr('r', isSelected ? 6 : 4);
+            });
+        }
 
         function selectBlock(blockData) {
             // Clear previous selection
@@ -1240,6 +1272,8 @@
 
             // Update code panel selection
             updateCodePanelSelection(blockData);
+            // Update value-cost plot point styling
+            updateValueCostPointStyles();
         }
 
         function showAllCode() {
