@@ -925,7 +925,7 @@
             const margin = { top: 20, right: 20, bottom: 40, left: 60 };
             const containerWidth = container.clientWidth || 300;
             const width = containerWidth - margin.left - margin.right;
-            const height = 220 - margin.top - margin.bottom;
+            const height = 270 - margin.top - margin.bottom;
 
             // Avoid log(0): start domain at min positive cost
             const minCost = d3.min(series, d => d.x) || 1;
@@ -1622,7 +1622,7 @@
             const margin = { top: 40, right: 120, bottom: 60, left: 80 };
             const containerWidth = document.getElementById('chart').clientWidth || 1200;
             const width = containerWidth - margin.left - margin.right;
-            const height = 225 - margin.top - margin.bottom;
+            const height = 270 - margin.top - margin.bottom;
 
             // Group small blocks (< 0.1% threshold)
             const threshold = totalCells * 0.001;
