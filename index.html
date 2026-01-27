@@ -610,19 +610,24 @@
             }
         }
 
-        function calculateEffectiveness(item, effType) {
+        function getMetricValues(item, effType) {
             switch (effType) {
                 case 'cost':
-                    return item.cost_before / item.cost_after;
+                    return { before: item.cost_before, after: item.cost_after };
                 case 'main_columns':
-                    return item.stats.before.main_columns / item.stats.after.main_columns;
+                    return { before: item.stats.before.main_columns, after: item.stats.after.main_columns };
                 case 'constraints':
-                    return item.stats.before.constraints / item.stats.after.constraints;
+                    return { before: item.stats.before.constraints, after: item.stats.after.constraints };
                 case 'bus_interactions':
-                    return item.stats.before.bus_interactions / item.stats.after.bus_interactions;
+                    return { before: item.stats.before.bus_interactions, after: item.stats.after.bus_interactions };
                 default:
                     throw new Error(`Unknown effectiveness type: ${effType}`);
             }
+        }
+
+        function calculateEffectiveness(item, effType) {
+            const { before, after } = getMetricValues(item, effType);
+            return before / after;
         }
 
         function formatCellCount(count) {
@@ -639,32 +644,42 @@
 
         function processData() {
             const effType = effectivenessType.value;
-            const processed = currentData.map(item => ({
-                start_pc: item.original_block.start_pc,
-                effectiveness: calculateEffectiveness(item, effType),
-                instructions: item.original_block.statements.length,
-                software_version_cells: item.width_before * item.execution_frequency,
-                width_before: item.width_before,
-                execution_frequency: item.execution_frequency,
-                statements: item.original_block.statements,  // Keep the code statements
-                stats_after: item.stats.after  // Keep APC stats
-            }));
+            const processed = currentData.map(item => {
+                const { before, after } = getMetricValues(item, effType);
+                const metric_before = before * item.execution_frequency;
+                const metric_after = after * item.execution_frequency;
+                return {
+                    start_pc: item.original_block.start_pc,
+                    effectiveness: before / after,
+                    instructions: item.original_block.statements.length,
+                    software_version_cells: metric_before, // alias used throughout charting
+                    metric_before,
+                    metric_after,
+                    width_before: item.width_before,
+                    execution_frequency: item.execution_frequency,
+                    statements: item.original_block.statements,  // Keep the code statements
+                    stats_after: item.stats.after  // Keep APC stats
+                };
+            });
 
-            // Sort by software_version_cells descending
-            processed.sort((a, b) => b.software_version_cells - a.software_version_cells);
+            // Sort by metric_before (matches Python)
+            processed.sort((a, b) => b.metric_before - a.metric_before);
 
             return processed;
         }
 
         function updateVisualization() {
             const data = processData();
-            const totalCells = data.reduce((sum, d) => sum + d.software_version_cells, 0);
+            const totalBefore = data.reduce((sum, d) => sum + d.metric_before, 0);
+            const totalAfter = data.reduce((sum, d) => sum + d.metric_after, 0);
 
-            // Calculate weighted mean
-            const meanEffectiveness = data.reduce((sum, d) => sum + d.effectiveness * d.software_version_cells, 0) / totalCells;
+            // Calculate weighted mean (weight by cost after, matches Python)
+            const meanEffectiveness = totalAfter > 0
+                ? data.reduce((sum, d) => sum + d.effectiveness * d.metric_after, 0) / totalAfter
+                : 0;
 
             // Create visualization
-            createChart(data, totalCells, meanEffectiveness);
+            createChart(data, totalBefore, meanEffectiveness);
 
             // Show all code in the code panel
             showAllCode();
@@ -1482,6 +1497,7 @@
                 .call(d3.axisLeft(yScale));
 
             // Add labels
+            const effType = effectivenessType.options[effectivenessType.selectedIndex].text;
             svg.append('text')
                 .attr('transform', 'rotate(-90)')
                 .attr('y', 0 - margin.left)
@@ -1493,10 +1509,9 @@
             svg.append('text')
                 .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
                 .style('text-anchor', 'middle')
-                .text('Cumulative instruction trace cells (software version)');
+                .text(`Cumulative ${effType.toLowerCase()} before (software version)`);
 
             // Add title
-            const effType = effectivenessType.options[effectivenessType.selectedIndex].text;
             svg.append('text')
                 .attr('x', width / 2)
                 .attr('y', 0 - margin.top / 2)
