@@ -44,7 +44,7 @@
             stroke: #ffc10755 !important;
             stroke-width: 2 !important;
         }
-        
+
         .bar-selected {
             stroke: #ffc107 !important;
             stroke-width: 4 !important;
@@ -64,7 +64,7 @@
             font-weight: bold;
             color: #1565c0;
             font-family: 'Courier New', monospace;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: none;
             cursor: pointer;
             transition: background-color 0.2s;
@@ -302,7 +302,8 @@
                 <div class="mt-3">
                     <div class="input-group">
                         <span class="input-group-text">Or paste URL:</span>
-                        <input type="text" id="urlInput" class="form-control" placeholder="https://example.com/data.json or GitHub link">
+                        <input type="text" id="urlInput" class="form-control"
+                            placeholder="https://example.com/data.json or GitHub link">
                         <button class="btn btn-primary" id="loadUrlBtn">Load from URL</button>
                     </div>
                     <small class="text-muted">Supports direct JSON URLs and GitHub file links</small>
@@ -310,69 +311,108 @@
             </div>
         </div>
 
-        <!-- Controls Section (hidden initially) -->
-        <div id="controlsSection" class="row mb-4" style="display: none;">
-            <div class="col-12">
-                <div class="row align-items-end">
-                    <div class="col-md-3">
-                        <label for="effectivenessType" class="form-label">Effectiveness Metric:</label>
-                        <select id="effectivenessType" class="form-select">
-                            <option value="cost" selected>Cost</option>
-                            <option value="main_columns">Main Columns</option>
-                            <option value="constraints">Constraints</option>
-                            <option value="bus_interactions">Bus Interactions</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 ms-auto">
-                        <label for="pcSearch" class="form-label">Block ID:</label>
-                        <div class="input-group">
-                            <input type="text" id="pcSearch" class="form-control">
-                            <button class="btn btn-primary" id="pcSearchBtn">Go</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Visualization Section (hidden initially) -->
-        <div id="vizSection" style="display: none;">
+        <!-- Main App Section (hidden initially) -->
+        <div id="appSection" style="display: none;">
             <div class="row">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <div id="chart"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Labels Summary Section -->
-            <div class="row mt-4" id="labelsSummarySection" style="display: none;">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <div class="collapsible-header" id="labelsHeader">
-                            <span class="collapse-icon collapsed">▼</span>
-                            <h5 style="margin: 0;">Labels</h5>
+                <!-- Left column: plot + labels + code -->
+                <div class="col-12 col-lg-9">
+                    <div id="vizSection">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <ul class="nav nav-pills mb-3" id="chartTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="tab-effectiveness"
+                                                type="button">Effectiveness by Basic Block</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-secondary" type="button">Saved proving cost
+                                                vs added verifier cost</button>
+                                        </li>
+                                    </ul>
+                                    <div id="chartTabEffectiveness">
+                                        <div id="chart"></div>
+                                    </div>
+                                    <div id="chartTabSecondary" style="display: none;">
+                                        <div id="chartValueCost"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="labelsContent" style="display: none; margin-top: 10px;">
-                            <div class="labels-table-wrapper">
-                                <div id="labelsTableContainer"></div>
+
+                        <!-- Labels Summary Section -->
+                        <div class="row mt-4" id="labelsSummarySection" style="display: none;">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <div class="collapsible-header" id="labelsHeader">
+                                        <span class="collapse-icon collapsed">▼</span>
+                                        <h5 style="margin: 0;">Labels</h5>
+                                    </div>
+                                    <div id="labelsContent" style="display: none; margin-top: 10px;">
+                                        <div class="labels-table-wrapper">
+                                            <div id="labelsTableContainer"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Code Panel Section -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <h5>Program Code</h5>
+                                    <div class="code-panel-container">
+                                        <div id="stickyLabelHeader" class="sticky-label-header"></div>
+                                        <div id="codePanel" class="code-panel">
+                                            <span class="text-muted">No data loaded</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Code Panel Section -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="chart-container">
-                        <h5>Program Code</h5>
-                        <div class="mb-2">
-                            <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
+                <!-- Right column: controls -->
+                <div class="col-12 col-lg-3">
+                    <div id="infoSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <h5>Info</h5>
+                            <p class="text-muted small" id="plotInfoText" style="margin-bottom: 0;">
+                            </p>
                         </div>
-                        <div class="code-panel-container">
-                            <div id="stickyLabelHeader" class="sticky-label-header"></div>
-                            <div id="codePanel" class="code-panel">
-                                <span class="text-muted">No data loaded</span>
+                    </div>
+
+                    <div id="controlsSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="effectivenessType" class="form-label">Cost Metric:</label>
+                                    <select id="effectivenessType" class="form-select">
+                                        <option value="cost" selected>Total Cost</option>
+                                        <option value="main_columns">Main Columns</option>
+                                        <option value="constraints">Constraints</option>
+                                        <option value="bus_interactions">Bus Interactions</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="pcSearch" class="form-label">Block ID:</label>
+                                    <div class="input-group">
+                                        <input type="text" id="pcSearch" class="form-control">
+                                        <button class="btn btn-primary" id="pcSearchBtn">Go</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="selectedBlockSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <h5>Selected Basic Block</h5>
+                            <div class="mb-2">
+                                <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a
+                                    block</span>
                             </div>
                         </div>
                     </div>
@@ -386,17 +426,30 @@
         let currentLabels = {};
         let chart = null;
         let selectedBlock = null;
+        let lastData = null;
+        let lastMeanEffectiveness = null;
 
         // File handling
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const uploadSection = document.getElementById('uploadSection');
+        const appSection = document.getElementById('appSection');
         const controlsSection = document.getElementById('controlsSection');
         const vizSection = document.getElementById('vizSection');
         const effectivenessType = document.getElementById('effectivenessType');
         const pageTitle = document.getElementById('pageTitle');
         const pcSearch = document.getElementById('pcSearch');
         const pcSearchBtn = document.getElementById('pcSearchBtn');
+        const tabEffectiveness = document.getElementById('tab-effectiveness');
+        const tabSecondary = document.getElementById('tab-secondary');
+        const chartTabEffectiveness = document.getElementById('chartTabEffectiveness');
+        const chartTabSecondary = document.getElementById('chartTabSecondary');
+        const plotInfoText = document.getElementById('plotInfoText');
+
+        // Plot point sizing (value-cost plot)
+        const POINT_RADIUS = 3;
+        const HOVER_RADIUS = 6;
+        const SELECTED_RADIUS = 6;
 
         // Drop zone events
         dropZone.addEventListener('click', () => fileInput.click());
@@ -429,6 +482,38 @@
         const urlInput = document.getElementById('urlInput');
         const loadUrlBtn = document.getElementById('loadUrlBtn');
 
+        tabEffectiveness.addEventListener('click', () => {
+            tabEffectiveness.classList.add('active');
+            tabSecondary.classList.remove('active');
+            chartTabEffectiveness.style.display = 'block';
+            chartTabSecondary.style.display = 'none';
+            updateInfoText();
+            if (lastData) {
+                const totalBefore = lastData.reduce((sum, d) => sum + d.metric_before, 0);
+                createChart(lastData, totalBefore, lastMeanEffectiveness || 0);
+            } else if (currentData) {
+                updateVisualization();
+            }
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.delete('plot');
+            window.history.replaceState({}, document.title, newUrl);
+        });
+
+        tabSecondary.addEventListener('click', () => {
+            tabSecondary.classList.add('active');
+            tabEffectiveness.classList.remove('active');
+            chartTabEffectiveness.style.display = 'none';
+            chartTabSecondary.style.display = 'block';
+            updateInfoText();
+            if (lastData) {
+                createValueCostPlot(lastData);
+            } else if (currentData) {
+                createValueCostPlot(processData());
+            }
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('plot', 'value-cost');
+            window.history.replaceState({}, document.title, newUrl);
+        });
         loadUrlBtn.addEventListener('click', loadFromUrl);
         urlInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -453,17 +538,18 @@
             try {
                 loadUrlBtn.disabled = true;
                 loadUrlBtn.textContent = 'Loading...';
-                
+
                 const response = await fetch(fetchUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const text = await response.text();
                 try {
                     const jsonData = JSON.parse(text);
                     loadData(jsonData);
                     uploadSection.style.display = 'none';
+                    appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
@@ -549,13 +635,16 @@
                 alert(`No block found containing PC: 0x${pcValue.toString(16)} (${pcValue})`);
             }
         }
-        
+
         pageTitle.addEventListener('click', () => {
             currentData = null;
             currentLabels = {};
             selectedBlock = null;
             uploadSection.style.display = 'block';
+            appSection.style.display = 'none';
             controlsSection.style.display = 'none';
+            document.getElementById('selectedBlockSection').style.display = 'none';
+            document.getElementById('infoSection').style.display = 'none';
             vizSection.style.display = 'none';
             fileInput.value = '';
             urlInput.value = '';
@@ -567,10 +656,16 @@
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const dataUrl = urlParams.get('url') || urlParams.get('data');
-            
+            const plotParam = urlParams.get('plot');
+
             if (dataUrl) {
                 urlInput.value = dataUrl;
                 loadFromUrl();
+            }
+            if (plotParam === 'value-cost') {
+                tabSecondary.click();
+            } else {
+                updateInfoText();
             }
         });
 
@@ -586,6 +681,7 @@
                     const jsonData = JSON.parse(e.target.result);
                     loadData(jsonData);
                     uploadSection.style.display = 'none';
+                    appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
                     vizSection.style.display = 'block';
                     updateVisualization();
@@ -608,6 +704,11 @@
                 currentData = jsonData;
                 currentLabels = {};
             }
+            // Show right-side panes when data is loaded
+            document.getElementById('selectedBlockSection').style.display = 'block';
+            document.getElementById('infoSection').style.display = 'block';
+            controlsSection.style.display = 'block';
+            updateInfoText();
         }
 
         function getMetricValues(item, effType) {
@@ -630,7 +731,7 @@
             return before / after;
         }
 
-        function formatCellCount(count) {
+        function formatMetric(count) {
             if (count >= 1e9) {
                 return (count / 1e9).toFixed(1) + 'B';
             } else if (count >= 1e6) {
@@ -648,6 +749,8 @@
                 const { before, after } = getMetricValues(item, effType);
                 const metric_before = before * item.execution_frequency;
                 const metric_after = after * item.execution_frequency;
+                const value = (before - after) * item.execution_frequency;
+                const density = metric_after > 0 ? value / after : 0;
                 return {
                     start_pc: item.original_block.start_pc,
                     effectiveness: before / after,
@@ -655,6 +758,10 @@
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
+                    metric_before_raw: before,
+                    metric_after_raw: after,
+                    value,
+                    density,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
                     statements: item.original_block.statements,  // Keep the code statements
@@ -678,8 +785,14 @@
                 ? data.reduce((sum, d) => sum + d.effectiveness * d.metric_after, 0) / totalAfter
                 : 0;
 
-            // Create visualization
+            lastData = data;
+            lastMeanEffectiveness = meanEffectiveness;
+
+            // Create visualizations
             createChart(data, totalBefore, meanEffectiveness);
+            if (chartTabSecondary.style.display !== 'none') {
+                createValueCostPlot(data);
+            }
 
             // Show all code in the code panel
             showAllCode();
@@ -791,13 +904,260 @@
             return labelArray;
         }
 
+        function createValueCostPlot(data) {
+            const container = document.getElementById('chartValueCost');
+            if (!container) return;
+            d3.select(container).selectAll('*').remove();
+
+            // Sort by density (value / cost_after)
+            const sorted = [...data].sort((a, b) => b.density - a.density);
+
+            if (sorted.length === 0) {
+                container.innerHTML = '<span class="text-muted">No data available for value-cost plot.</span>';
+                return;
+            }
+
+            // Build cumulative arrays (cost scaled by execution frequency)
+            let cumulativeCost = 0;
+            let cumulativeValue = 0;
+            const series = sorted.map((d, idx) => {
+                cumulativeCost += d.metric_after_raw;
+                cumulativeValue += d.value;
+                return { x: cumulativeCost, y: cumulativeValue, block: d, idx };
+            });
+            const totalSoftwareCost = data.reduce((sum, d) => sum + d.metric_before, 0);
+
+            const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+            const containerWidth = container.clientWidth || 300;
+            const width = containerWidth - margin.left - margin.right;
+            const height = 270 - margin.top - margin.bottom;
+
+            // Avoid log(0): start domain at min positive cost
+            const minCost = d3.min(series, d => d.x) || 1;
+            const maxCost = d3.max(series, d => d.x) || minCost;
+            const xScale = d3.scaleLog()
+                .domain([Math.max(1, minCost), maxCost])
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, Math.max(d3.max(series, d => d.y), totalSoftwareCost)])
+                .range([height, 0]);
+
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Hover guide lines
+            const guideH = svg.append('line')
+                .attr('stroke', '#bbbbbb')
+                .attr('stroke-dasharray', '4 4')
+                .attr('stroke-width', 1)
+                .style('display', 'none');
+            const guideV = svg.append('line')
+                .attr('stroke', '#bbbbbb')
+                .attr('stroke-dasharray', '4 4')
+                .attr('stroke-width', 1)
+                .style('display', 'none');
+            const guideHText = svg.append('text')
+                .style('fill', '#555')
+                .style('font-size', '11px')
+                .style('display', 'none');
+            const guideVText = svg.append('text')
+                .style('fill', '#555')
+                .style('font-size', '11px')
+                .style('display', 'none');
+
+            const line = d3.line()
+                .x(d => xScale(d.x))
+                .y(d => yScale(d.y))
+                .curve(d3.curveLinear);
+
+            // Background for deselect on click (send behind everything)
+            svg.append('rect')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('fill', 'transparent')
+                .attr('pointer-events', 'all')
+                .on('click', () => selectBlock(null))
+                .lower();
+
+            svg.append('path')
+                .datum(series)
+                .attr('fill', 'none')
+                .attr('stroke', '#0d6efd')
+                .attr('stroke-width', 2)
+                .attr('d', line);
+
+            // Horizontal lines at percentages of total software cost (upper bound)
+            if (totalSoftwareCost > 0) {
+                const percentages = [0.2, 0.4, 0.6, 0.8, 1.0];
+                percentages.forEach(pct => {
+                    const yVal = totalSoftwareCost * pct;
+                    svg.append('line')
+                        .attr('x1', 0)
+                        .attr('x2', width)
+                        .attr('y1', yScale(yVal))
+                        .attr('y2', yScale(yVal))
+                        .attr('stroke', '#888')
+                        .attr('stroke-dasharray', '4 4')
+                        .attr('stroke-width', pct === 1 ? 1.5 : 1);
+
+                    const label = pct === 1
+                        ? `Software cost: ${formatMetric(yVal)}`
+                        : `${Math.round(pct * 100)}%`;
+
+                    svg.append('text')
+                        .attr('x', 5)
+                        .attr('y', yScale(yVal) - 6)
+                        .attr('text-anchor', 'start')
+                        .style('fill', '#666')
+                        .style('font-size', '11px')
+                        .text(label);
+                });
+            }
+
+            // Point labels for selected counts (powers of 10 and 3×powers of 10)
+            const refCounts = [];
+            const maxCount = series.length;
+            for (let p = 0; Math.pow(10, p) <= maxCount; p++) {
+                const pow = Math.pow(10, p);
+                if (p > 0) {
+                    refCounts.push(pow);
+                }
+                const three = 3 * pow;
+                if (three <= maxCount) refCounts.push(three);
+            }
+            const labelYOffset = 14;
+            refCounts.forEach((count, idx) => {
+                if (count > series.length || count < 1) return;
+                const point = series[count - 1];
+
+                svg.append('text')
+                    .attr('x', xScale(point.x))
+                    .attr('y', yScale(point.y) - labelYOffset)
+                    .attr('text-anchor', 'middle')
+                    .style('fill', '#555')
+                    .style('font-size', '11px')
+                    .text(`${count} APCs`);
+            });
+
+            // Tooltip
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0);
+
+            const baseColor = '#0d6efd';
+            const hoverColor = '#0b5ed7';
+            const selectedColor = '#d32f2f';
+
+            // Points
+            svg.selectAll('.value-point')
+                .data(series)
+                .enter()
+                .append('circle')
+                .attr('class', 'value-point')
+                .attr('cx', d => xScale(d.x))
+                .attr('cy', d => yScale(d.y))
+                .attr('r', POINT_RADIUS)
+                .attr('fill', baseColor)
+                .attr('stroke', baseColor)
+                .attr('stroke-width', 1)
+                .on('mouseover', function (event, d) {
+                    const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                    d3.select(this)
+                        .attr('r', isSelected ? SELECTED_RADIUS : HOVER_RADIUS)
+                        .attr('fill', isSelected ? selectedColor : hoverColor)
+                        .attr('stroke', isSelected ? selectedColor : hoverColor);
+                    tooltip.transition().duration(200).style('opacity', 0.9);
+                    const b = d.block;
+                    tooltip.html(
+                        `<strong>PC: 0x${b.start_pc.toString(16)}</strong><br/>
+                         Execution frequency: ${formatMetric(b.execution_frequency)}<br/>
+                         Instructions: ${b.instructions}<br/>
+                         Cost (software version): ${formatMetric(b.metric_before)}<br/>
+                         Cost (accelerated): ${formatMetric(b.metric_after)}<br/>
+                         Effectiveness: ${b.effectiveness.toFixed(2)}<br/>
+                         Verifier cost (accelerated): ${formatMetric(b.metric_after_raw)}<br/>
+                         APC size: ${b.stats_after.main_columns} cols, ${b.stats_after.bus_interactions} bus, ${b.stats_after.constraints} constraints`
+                    )
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY + 10) + 'px');
+
+                    // Guides
+                    guideH
+                        .attr('x1', 0)
+                        .attr('x2', width)
+                        .attr('y1', yScale(d.y))
+                        .attr('y2', yScale(d.y))
+                        .style('display', 'block');
+                    guideV
+                        .attr('x1', xScale(d.x))
+                        .attr('x2', xScale(d.x))
+                        .attr('y1', 0)
+                        .attr('y2', height)
+                        .style('display', 'block');
+
+                    const pctSaved = totalSoftwareCost > 0 ? (d.y / totalSoftwareCost * 100) : 0;
+                    guideHText
+                        .attr('x', 5)
+                        .attr('y', yScale(d.y) - 6)
+                        .style('display', 'block')
+                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
+
+                    guideVText
+                        .attr('x', xScale(d.x) + 4)
+                        .attr('y', 20)
+                        .style('display', 'block')
+                        .text(`Verifier cost: ${formatMetric(d.x)} · APCs: ${d.idx + 1}`);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition().duration(300).style('opacity', 0);
+                    updateValueCostPointStyles();
+                    guideH.style('display', 'none');
+                    guideV.style('display', 'none');
+                    guideHText.style('display', 'none');
+                    guideVText.style('display', 'none');
+                })
+                .on('click', function (event, d) {
+                    event.stopPropagation();
+                    selectBlock(d.block);
+                });
+
+            // Apply selection styling initially
+            updateValueCostPointStyles();
+
+            // Axes
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).ticks(5, "~s"));
+
+            svg.append('g')
+                .call(d3.axisLeft(yScale).ticks(5).tickFormat(formatMetric));
+
+            // Labels
+            svg.append('text')
+                .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 5})`)
+                .style('text-anchor', 'middle')
+                .text('Added verifier cost (log)');
+
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', 0 - margin.left + 15)
+                .attr('x', 0 - (height / 2))
+                .style('text-anchor', 'middle')
+                .text('Saved prover cost');
+        }
+
         function sortBlocksInLabel(blocks) {
             // Sort blocks by trace cells (descending) by default
             blocks.sort((a, b) => {
                 const column = currentLabelSort.column;
                 let aVal, bVal;
 
-                switch(column) {
+                switch (column) {
                     case 'traceCells':
                         aVal = a.traceCells;
                         bVal = b.traceCells;
@@ -859,7 +1219,7 @@
             const newLabelsHeader = document.getElementById('labelsHeader');
             const newCollapseIcon = newLabelsHeader.querySelector('.collapse-icon');
 
-            newLabelsHeader.addEventListener('click', function() {
+            newLabelsHeader.addEventListener('click', function () {
                 const content = document.getElementById('labelsContent');
                 const icon = this.querySelector('.collapse-icon');
 
@@ -902,7 +1262,7 @@
                         <td>0x${row.pc.toString(16)}</td>
                         <td class="label-cell">${escapeHtml(row.label)}</td>
                         <td>${row.blockCount}</td>
-                        <td>${formatCellCount(row.traceCells)}</td>
+                        <td>${formatMetric(row.traceCells)}</td>
                         <td>${row.effectiveness.toFixed(2)}</td>
                     </tr>
                 `;
@@ -915,7 +1275,7 @@
                             <td>0x${block.pc.toString(16)}</td>
                             <td>...</td>
                             <td></td>
-                            <td>${formatCellCount(block.traceCells)}</td>
+                            <td>${formatMetric(block.traceCells)}</td>
                             <td>${block.effectiveness.toFixed(2)}</td>
                         </tr>
                     `;
@@ -940,7 +1300,7 @@
 
             // Add click handlers for sorting
             document.querySelectorAll('.labels-table th').forEach(th => {
-                th.addEventListener('click', function() {
+                th.addEventListener('click', function () {
                     const column = this.getAttribute('data-column');
                     if (currentLabelSort.column === column) {
                         // Toggle direction
@@ -961,7 +1321,7 @@
 
                 // Click on expand icon or first cell to expand
                 const expandCell = tr.querySelector('td:first-child');
-                expandCell.addEventListener('click', function(e) {
+                expandCell.addEventListener('click', function (e) {
                     e.stopPropagation();
 
                     // Find all detail rows for this label
@@ -978,7 +1338,7 @@
                 });
 
                 // Click on rest of row to select first block
-                tr.addEventListener('click', function(e) {
+                tr.addEventListener('click', function (e) {
                     if (e.target.closest('td:first-child')) return; // Ignore if clicking expand cell
                     const pc = parseInt(this.getAttribute('data-pc'));
                     const data = processData();
@@ -991,7 +1351,7 @@
 
             // Add click handlers for individual block rows
             document.querySelectorAll('.blocks-detail-row').forEach(tr => {
-                tr.addEventListener('click', function() {
+                tr.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-block-pc'));
                     const data = processData();
                     const block = data.find(d => d.start_pc === pc);
@@ -1030,7 +1390,36 @@
         function clearHighlights() {
             d3.selectAll('.bar').classed('bar-highlight', false);
         }
-        
+
+        function updateBarSelection() {
+            if (!selectedBlock || selectedBlock.is_other) return;
+            d3.selectAll('.bar')
+                .classed('bar-selected', d => d.start_pc === selectedBlock.start_pc);
+        }
+
+        function updateInfoText() {
+            if (!plotInfoText) return;
+            const showingEffectiveness = chartTabSecondary.style.display === 'none';
+            if (showingEffectiveness) {
+                plotInfoText.innerHTML = 'The plot shows each basic block, sorted the proving cost it causes in the software execution:<br>• The <strong>width</strong> corresponds to its cost before acceleration.<br>• The <strong>height</strong> shows the factor by which the cost is reduced after acceleration.';
+            } else {
+                plotInfoText.innerHTML = 'The plot shows the trade-off between added verifier cost and saved proving cost for accelerating basic blocks:<br>• The <strong>x-axis</strong> shows the cumulative verifier cost of accelerated blocks. APCs are added by decreasing density, i.e., the saved proving cost divided by the added verification cost.<br>• The <strong>y-axis</strong> shows the cumulative saved cost achieved by accelerating those blocks.';
+            }
+        }
+
+        function updateValueCostPointStyles() {
+            const baseColor = '#0d6efd';
+            const selectedColor = '#d32f2f';
+            d3.selectAll('.value-point').each(function (d) {
+                const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                d3.select(this)
+                    .attr('fill', isSelected ? selectedColor : baseColor)
+                    .attr('stroke', isSelected ? selectedColor : baseColor)
+                    .attr('stroke-width', 1)
+                    .attr('r', isSelected ? SELECTED_RADIUS : POINT_RADIUS);
+            });
+        }
+
         function selectBlock(blockData) {
             // Clear previous selection
             d3.selectAll('.bar').classed('bar-selected', false);
@@ -1061,6 +1450,10 @@
 
             // Update code panel selection
             updateCodePanelSelection(blockData);
+            // Update value-cost plot point styling
+            updateValueCostPointStyles();
+            // Update bar selection styling (for re-rendered charts)
+            updateBarSelection();
         }
 
         function showAllCode() {
@@ -1109,7 +1502,7 @@
                 }
 
                 const blockId = `block-${block.start_pc}`;
-                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cells: ${formatCellCount(block.software_version_cells)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
+                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cost (software): ${formatMetric(block.metric_before)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
 
                 const linesHtml = block.statements.map((stmt, idx) =>
                     `<div class="code-line" data-pc="${block.start_pc}" data-line="${idx}">${escapeHtml(stmt)}</div>`
@@ -1127,7 +1520,7 @@
 
             // Add click handlers to code lines
             document.querySelectorAll('.code-line').forEach(line => {
-                line.addEventListener('click', function() {
+                line.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-pc'));
                     const blockData = allBlocks.find(b => b.start_pc === pc);
                     if (blockData) {
@@ -1233,21 +1626,25 @@
             if (blockData.is_other) {
                 codeInfo.innerHTML = `
                     <strong>Other blocks (${blockData.count} APCs grouped)</strong><br/>
-                    <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> •
-                    <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span><br/>
+                    <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span><br/>
+                    <span>Cost (software version): ${formatMetric(blockData.software_version_cells)}</span><br/>
+                    <span>Cost (accelerated): ${formatMetric(blockData.metric_after || 0)}</span><br/>
                     <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
-                    <span>APC size (total): ${blockData.stats_after.main_columns || 0} columns, ${blockData.stats_after.bus_interactions || 0} bus interactions, ${blockData.stats_after.constraints || 0} constraints</span>
+                    <span>Verifier cost (accelerated): n/a</span><br/>
+                    <span>APC size (total): ${blockData.stats_after.main_columns || 0} cols, ${blockData.stats_after.bus_interactions || 0} bus, ${blockData.stats_after.constraints || 0} constraints</span>
                 `;
                 return;
             }
 
             codeInfo.innerHTML = `
                 <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
-                <span>Cells (software version): ${formatCellCount(blockData.software_version_cells)}</span> •
-                <span>Execution frequency: ${formatCellCount(blockData.execution_frequency)}</span> •
+                <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span><br/>
                 <span>Instructions: ${blockData.instructions}</span><br/>
+                <span>Cost (software version): ${formatMetric(blockData.metric_before)}</span><br/>
+                <span>Cost (accelerated): ${formatMetric(blockData.metric_after)}</span><br/>
                 <span>Effectiveness: ${blockData.effectiveness.toFixed(2)}</span><br/>
-                <span>APC size: ${blockData.stats_after.main_columns} columns, ${blockData.stats_after.bus_interactions} bus interactions, ${blockData.stats_after.constraints} constraints</span>
+                <span>Verifier cost (accelerated): ${formatMetric(blockData.metric_after_raw)}</span><br/>
+                <span>APC size: ${blockData.stats_after.main_columns} cols, ${blockData.stats_after.bus_interactions} bus, ${blockData.stats_after.constraints} constraints</span>
             `;
 
             // Highlight the selected block
@@ -1287,8 +1684,9 @@
 
             // Set dimensions and margins
             const margin = { top: 40, right: 120, bottom: 60, left: 80 };
-            const width = 1200 - margin.left - margin.right;
-            const height = 225 - margin.top - margin.bottom;
+            const containerWidth = document.getElementById('chart').clientWidth || 1200;
+            const width = containerWidth - margin.left - margin.right;
+            const height = 270 - margin.top - margin.bottom;
 
             // Group small blocks (< 0.1% threshold)
             const threshold = totalCells * 0.001;
@@ -1334,7 +1732,7 @@
                 .append('svg')
                 .attr('width', width + margin.left + margin.right)
                 .attr('height', height + margin.top + margin.bottom)
-                .on('click', function(event) {
+                .on('click', function (event) {
                     // If clicking on the background (not a bar), deselect
                     if (event.target.tagName === 'svg') {
                         selectBlock(null);
@@ -1349,7 +1747,7 @@
                 .attr('height', height)
                 .style('fill', 'none')
                 .style('pointer-events', 'all')
-                .on('click', function(event) {
+                .on('click', function (event) {
                     event.stopPropagation();
                     selectBlock(null);
                 });
@@ -1382,9 +1780,11 @@
                 .range([height, 0]);
 
             // Color scale for instructions (log scale)
-            const validInstructions = plotData.filter(d => !d.is_other).map(d => d.instructions);
+            const validInstructions = plotData.filter(d => !d.is_other && d.instructions > 0).map(d => d.instructions);
+            const instrMin = d3.min(validInstructions) || 1;
+            const instrMax = d3.max(validInstructions) || instrMin;
             const colorScale = d3.scaleSequentialLog()
-                .domain([d3.min(validInstructions), d3.max(validInstructions)])
+                .domain([instrMin, instrMax])
                 .interpolator(d3.interpolateRdYlGn);
 
             // Add grid
@@ -1425,21 +1825,21 @@
                     let content = '';
                     if (d.is_other) {
                         content = `<strong>Other (${d.count} APCs)</strong><br/>
-                                  Cells (software version): ${formatCellCount(d.software_version_cells)}<br/>
-                                  Execution frequency: ${formatCellCount(d.execution_frequency)}<br/>
+                                  Execution frequency: ${formatMetric(d.execution_frequency)}<br/>
+                                  Cost (software version): ${formatMetric(d.software_version_cells)}<br/>
+                                  Cost (accelerated): ${formatMetric(d.metric_after || 0)}<br/>
                                   Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
-                                  APC columns (total): ${d.stats_after.main_columns || 'N/A'}<br/>
-                                  APC bus interactions (total): ${d.stats_after.bus_interactions || 'N/A'}<br/>
-                                  APC constraints (total): ${d.stats_after.constraints || 'N/A'}`;
+                                  Verifier cost (accelerated): n/a<br/>
+                                  APC size (total): ${d.stats_after.main_columns || 'N/A'} cols, ${d.stats_after.bus_interactions || 'N/A'} bus, ${d.stats_after.constraints || 'N/A'} constraints`;
                     } else {
                         content = `<strong>PC: 0x${d.start_pc.toString(16)}</strong><br/>
-                                  Cells (software version): ${formatCellCount(d.software_version_cells)}<br/>
-                                  Execution frequency: ${formatCellCount(d.execution_frequency)}<br/>
-                                  Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
+                                  Execution frequency: ${formatMetric(d.execution_frequency)}<br/>
                                   Instructions: ${d.instructions}<br/>
-                                  APC columns: ${d.stats_after.main_columns}<br/>
-                                  APC bus interactions: ${d.stats_after.bus_interactions}<br/>
-                                  APC constraints: ${d.stats_after.constraints}`;
+                                  Cost (software version): ${formatMetric(d.metric_before)}<br/>
+                                  Cost (accelerated): ${formatMetric(d.metric_after)}<br/>
+                                  Effectiveness: ${d.effectiveness.toFixed(2)}<br/>
+                                  Verifier cost (accelerated): ${formatMetric(d.metric_after_raw)}<br/>
+                                  APC size: ${d.stats_after.main_columns} cols, ${d.stats_after.bus_interactions} bus, ${d.stats_after.constraints} constraints`;
                     }
 
                     tooltip.html(content)
@@ -1460,12 +1860,12 @@
                     // Clear highlights
                     clearHighlights();
                 })
-                .on('click', function(event, d) {
+                .on('click', function (event, d) {
                     event.stopPropagation();
                     // Select this block on click
                     selectBlock(d);
                 });
-            
+
             // Note: Selection is handled in the selectBlock function after chart is created
 
             // Add "Other" label for wide enough other blocks
@@ -1491,7 +1891,7 @@
             svg.append('g')
                 .attr('transform', `translate(0,${height})`)
                 .call(d3.axisBottom(xScale)
-                    .tickFormat(d => formatCellCount(d)));
+                    .tickFormat(d => formatMetric(d)));
 
             svg.append('g')
                 .call(d3.axisLeft(yScale));
@@ -1545,7 +1945,7 @@
                 const legendHeight = 200;
 
                 const legendScale = d3.scaleLinear()
-                    .domain([Math.log10(d3.min(validInstructions)), Math.log10(d3.max(validInstructions))])
+                    .domain([Math.log10(instrMin), Math.log10(instrMax)])
                     .range([legendHeight, 0]);
 
                 const legendAxis = d3.axisRight(legendScale)
@@ -1568,7 +1968,7 @@
                 const steps = 20;
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
-                    const value = d3.min(validInstructions) * Math.pow(d3.max(validInstructions) / d3.min(validInstructions), t);
+                    const value = instrMin * Math.pow(instrMax / instrMin, t);
                     gradient.append('stop')
                         .attr('offset', `${t * 100}%`)
                         .style('stop-color', colorScale(value));
@@ -1591,6 +1991,9 @@
                     .style('font-size', '12px')
                     .text('Instructions (log)');
             }
+
+            // Apply selection styling if a block is already selected
+            updateBarSelection();
         }
     </script>
 </body>
