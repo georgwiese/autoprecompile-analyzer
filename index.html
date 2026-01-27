@@ -353,23 +353,19 @@
                                             <div id="labelsTableContainer"></div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Code Panel Section -->
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <div class="chart-container">
-                                    <h5>Program Code</h5>
-                                    <div class="mb-2">
-                                        <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to
-                                            select a block</span>
-                                    </div>
-                                    <div class="code-panel-container">
-                                        <div id="stickyLabelHeader" class="sticky-label-header"></div>
-                                        <div id="codePanel" class="code-panel">
-                                            <span class="text-muted">No data loaded</span>
+                <!-- Code Panel Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="chart-container">
+                            <h5>Program Code</h5>
+                            <div class="code-panel-container">
+                                <div id="stickyLabelHeader" class="sticky-label-header"></div>
+                                <div id="codePanel" class="code-panel">
+                                    <span class="text-muted">No data loaded</span>
                                         </div>
                                     </div>
                                 </div>
@@ -399,6 +395,15 @@
                                         <button class="btn btn-primary" id="pcSearchBtn">Go</button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="selectedBlockSection" class="mb-4" style="display: none;">
+                        <div class="chart-container">
+                            <h5>Selected Basic Block</h5>
+                            <div class="mb-2">
+                                <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a block</span>
                             </div>
                         </div>
                     </div>
@@ -605,6 +610,7 @@
             uploadSection.style.display = 'block';
             appSection.style.display = 'none';
             controlsSection.style.display = 'none';
+            document.getElementById('selectedBlockSection').style.display = 'none';
             vizSection.style.display = 'none';
             fileInput.value = '';
             urlInput.value = '';
@@ -658,6 +664,9 @@
                 currentData = jsonData;
                 currentLabels = {};
             }
+            // Show right-side panes when data is loaded
+            document.getElementById('selectedBlockSection').style.display = 'block';
+            controlsSection.style.display = 'block';
         }
 
         function getMetricValues(item, effType) {
