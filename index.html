@@ -920,10 +920,10 @@
             // Build cumulative arrays (cost scaled by execution frequency)
             let cumulativeCost = 0;
             let cumulativeValue = 0;
-            const series = sorted.map(d => {
+            const series = sorted.map((d, idx) => {
                 cumulativeCost += d.metric_after_raw;
                 cumulativeValue += d.value;
-                return { x: cumulativeCost, y: cumulativeValue, block: d };
+                return { x: cumulativeCost, y: cumulativeValue, block: d, idx };
             });
             const totalSoftwareCost = data.reduce((sum, d) => sum + d.metric_before, 0);
 
@@ -949,6 +949,26 @@
                 .attr('height', height + margin.top + margin.bottom)
                 .append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Hover guide lines
+            const guideH = svg.append('line')
+                .attr('stroke', '#bbbbbb')
+                .attr('stroke-dasharray', '4 4')
+                .attr('stroke-width', 1)
+                .style('display', 'none');
+            const guideV = svg.append('line')
+                .attr('stroke', '#bbbbbb')
+                .attr('stroke-dasharray', '4 4')
+                .attr('stroke-width', 1)
+                .style('display', 'none');
+            const guideHText = svg.append('text')
+                .style('fill', '#555')
+                .style('font-size', '11px')
+                .style('display', 'none');
+            const guideVText = svg.append('text')
+                .style('fill', '#555')
+                .style('font-size', '11px')
+                .style('display', 'none');
 
             const line = d3.line()
                 .x(d => xScale(d.x))
@@ -1065,10 +1085,41 @@
                     )
                         .style('left', (event.pageX + 10) + 'px')
                         .style('top', (event.pageY + 10) + 'px');
+
+                    // Guides
+                    guideH
+                        .attr('x1', 0)
+                        .attr('x2', width)
+                        .attr('y1', yScale(d.y))
+                        .attr('y2', yScale(d.y))
+                        .style('display', 'block');
+                    guideV
+                        .attr('x1', xScale(d.x))
+                        .attr('x2', xScale(d.x))
+                        .attr('y1', 0)
+                        .attr('y2', height)
+                        .style('display', 'block');
+
+                    const pctSaved = totalSoftwareCost > 0 ? (d.y / totalSoftwareCost * 100) : 0;
+                    guideHText
+                        .attr('x', 5)
+                        .attr('y', yScale(d.y) - 6)
+                        .style('display', 'block')
+                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
+
+                    guideVText
+                        .attr('x', xScale(d.x) + 4)
+                        .attr('y', 20)
+                        .style('display', 'block')
+                        .text(`Verifier cost: ${formatMetric(d.x)} · APCs: ${d.idx + 1}`);
                 })
                 .on('mouseout', function () {
                     tooltip.transition().duration(300).style('opacity', 0);
                     updateValueCostPointStyles();
+                    guideH.style('display', 'none');
+                    guideV.style('display', 'none');
+                    guideHText.style('display', 'none');
+                    guideVText.style('display', 'none');
                 })
                 .on('click', function (event, d) {
                     event.stopPropagation();
@@ -1090,7 +1141,7 @@
             svg.append('text')
                 .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 5})`)
                 .style('text-anchor', 'middle')
-                .text('Cumulative verifier cost (log)');
+                .text('Added verifier cost (log)');
 
             svg.append('text')
                 .attr('transform', 'rotate(-90)')
