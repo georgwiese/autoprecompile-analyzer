@@ -1340,6 +1340,12 @@
             d3.selectAll('.bar').classed('bar-highlight', false);
         }
 
+        function updateBarSelection() {
+            if (!selectedBlock || selectedBlock.is_other) return;
+            d3.selectAll('.bar')
+                .classed('bar-selected', d => d.start_pc === selectedBlock.start_pc);
+        }
+
         function updateInfoText() {
             if (!plotInfoText) return;
             const showingEffectiveness = chartTabSecondary.style.display === 'none';
@@ -1395,6 +1401,8 @@
             updateCodePanelSelection(blockData);
             // Update value-cost plot point styling
             updateValueCostPointStyles();
+            // Update bar selection styling (for re-rendered charts)
+            updateBarSelection();
         }
 
         function showAllCode() {
@@ -1932,6 +1940,9 @@
                     .style('font-size', '12px')
                     .text('Instructions (log)');
             }
+
+            // Apply selection styling if a block is already selected
+            updateBarSelection();
         }
     </script>
 </body>
