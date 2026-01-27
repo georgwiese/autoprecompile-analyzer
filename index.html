@@ -481,6 +481,9 @@
             chartTabEffectiveness.style.display = 'block';
             chartTabSecondary.style.display = 'none';
             updateInfoText();
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.delete('plot');
+            window.history.replaceState({}, document.title, newUrl);
         });
 
         tabSecondary.addEventListener('click', () => {
@@ -492,6 +495,9 @@
             if (currentData) {
                 createValueCostPlot(processData());
             }
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('plot', 'value-cost');
+            window.history.replaceState({}, document.title, newUrl);
         });
         loadUrlBtn.addEventListener('click', loadFromUrl);
         urlInput.addEventListener('keypress', (e) => {
@@ -635,12 +641,17 @@
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const dataUrl = urlParams.get('url') || urlParams.get('data');
+            const plotParam = urlParams.get('plot');
 
             if (dataUrl) {
                 urlInput.value = dataUrl;
                 loadFromUrl();
             }
-            updateInfoText();
+            if (plotParam === 'value-cost') {
+                tabSecondary.click();
+            } else {
+                updateInfoText();
+            }
         });
 
         function handleFile(file) {
@@ -940,24 +951,32 @@
                 .attr('stroke-width', 2)
                 .attr('d', line);
 
-            // Horizontal line at cumulative software cost (upper bound)
+            // Horizontal lines at percentages of total software cost (upper bound)
             if (totalSoftwareCost > 0) {
-                svg.append('line')
-                    .attr('x1', 0)
-                    .attr('x2', width)
-                    .attr('y1', yScale(totalSoftwareCost))
-                    .attr('y2', yScale(totalSoftwareCost))
-                    .attr('stroke', '#888')
-                    .attr('stroke-dasharray', '4 4')
-                    .attr('stroke-width', 1.5);
+                const percentages = [0.2, 0.4, 0.6, 0.8, 1.0];
+                percentages.forEach(pct => {
+                    const yVal = totalSoftwareCost * pct;
+                    svg.append('line')
+                        .attr('x1', 0)
+                        .attr('x2', width)
+                        .attr('y1', yScale(yVal))
+                        .attr('y2', yScale(yVal))
+                        .attr('stroke', '#888')
+                        .attr('stroke-dasharray', '4 4')
+                        .attr('stroke-width', pct === 1 ? 1.5 : 1);
 
-                svg.append('text')
-                    .attr('x', width - 5)
-                    .attr('y', yScale(totalSoftwareCost) - 6)
-                    .attr('text-anchor', 'end')
-                    .style('fill', '#666')
-                    .style('font-size', '11px')
-                    .text(`Software cost: ${formatMetric(totalSoftwareCost)}`);
+                    const label = pct === 1
+                        ? `Software cost: ${formatMetric(yVal)}`
+                        : `${Math.round(pct * 100)}%`;
+
+                    svg.append('text')
+                        .attr('x', 5)
+                        .attr('y', yScale(yVal) - 6)
+                        .attr('text-anchor', 'start')
+                        .style('fill', '#666')
+                        .style('font-size', '11px')
+                        .text(label);
+                });
             }
 
             // Tooltip
@@ -1033,7 +1052,7 @@
                 .attr('y', 0 - margin.left + 15)
                 .attr('x', 0 - (height / 2))
                 .style('text-anchor', 'middle')
-                .text('Saved cost');
+                .text('Saved prover cost');
         }
 
         function sortBlocksInLabel(blocks) {
