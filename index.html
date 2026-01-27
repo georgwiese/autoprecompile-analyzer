@@ -994,6 +994,31 @@
                 });
             }
 
+            // Point labels for selected counts (powers of 10 and 3×powers of 10)
+            const refCounts = [];
+            const maxCount = series.length;
+            for (let p = 0; Math.pow(10, p) <= maxCount; p++) {
+                const pow = Math.pow(10, p);
+                if (p > 0) {
+                    refCounts.push(pow);
+                }
+                const three = 3 * pow;
+                if (three <= maxCount) refCounts.push(three);
+            }
+            const labelYOffset = 14;
+            refCounts.forEach((count, idx) => {
+                if (count > series.length || count < 1) return;
+                const point = series[count - 1];
+
+                svg.append('text')
+                    .attr('x', xScale(point.x))
+                    .attr('y', yScale(point.y) - labelYOffset)
+                    .attr('text-anchor', 'middle')
+                    .style('fill', '#555')
+                    .style('font-size', '11px')
+                    .text(`${count} APCs`);
+            });
+
             // Tooltip
             const tooltip = d3.select('body').append('div')
                 .attr('class', 'tooltip')
