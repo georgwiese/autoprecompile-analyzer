@@ -920,10 +920,12 @@
             // Build cumulative arrays (cost scaled by execution frequency)
             let cumulativeCost = 0;
             let cumulativeValue = 0;
+            let cumulativeBefore = 0;
             const series = sorted.map((d, idx) => {
                 cumulativeCost += d.metric_after_raw;
                 cumulativeValue += d.value;
-                return { x: cumulativeCost, y: cumulativeValue, block: d, idx };
+                cumulativeBefore += d.metric_before;
+                return { x: cumulativeCost, y: cumulativeValue, beforeCum: cumulativeBefore, block: d, idx };
             });
             const totalSoftwareCost = data.reduce((sum, d) => sum + d.metric_before, 0);
 
@@ -1049,6 +1051,12 @@
                 .attr('class', 'tooltip')
                 .style('opacity', 0);
 
+            // Secondary hover line text
+            const guideHText2 = svg.append('text')
+                .style('fill', '#555')
+                .style('font-size', '11px')
+                .style('display', 'none');
+
             const baseColor = '#0d6efd';
             const hoverColor = '#0b5ed7';
             const selectedColor = '#d32f2f';
@@ -1101,9 +1109,17 @@
                         .style('display', 'block');
 
                     const pctSaved = totalSoftwareCost > 0 ? (d.y / totalSoftwareCost * 100) : 0;
+                    const pctAccel = totalSoftwareCost > 0 ? (d.beforeCum / totalSoftwareCost * 100) : 0;
+
                     guideHText
                         .attr('x', 5)
                         .attr('y', yScale(d.y) - 6)
+                        .style('display', 'block')
+                        .text(`Accelerated prover cost: ${formatMetric(d.beforeCum)} (${pctAccel.toFixed(1)}%)`);
+
+                    guideHText2
+                        .attr('x', 5)
+                        .attr('y', yScale(d.y) + 14)
                         .style('display', 'block')
                         .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
 
@@ -1119,6 +1135,7 @@
                     guideH.style('display', 'none');
                     guideV.style('display', 'none');
                     guideHText.style('display', 'none');
+                    guideHText2.style('display', 'none');
                     guideVText.style('display', 'none');
                 })
                 .on('click', function (event, d) {
