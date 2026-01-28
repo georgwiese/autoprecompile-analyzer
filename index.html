@@ -1147,14 +1147,14 @@
                         .attr('y', yScale(d.y) - 6)
                         .attr('text-anchor', hAnchor)
                         .style('display', 'block')
-                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
+                        .text(`Accelerated prover cost: ${formatMetric(d.beforeCum)} (${pctAccel.toFixed(1)}%)`);
 
                     guideHText2
                         .attr('x', hLabelX)
                         .attr('y', yScale(d.y) + 14)
                         .attr('text-anchor', hAnchor)
                         .style('display', 'block')
-                        .text(`Accelerated prover cost: ${formatMetric(d.beforeCum)} (${pctAccel.toFixed(1)}%)`);
+                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
 
                     guideVText
                         .attr('x', isFirstHalf ? xScale(d.x) + 4 : xScale(d.x) - 4)
