@@ -287,6 +287,8 @@
     <nav class="navbar navbar-dark bg-primary">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1" id="pageTitle" style="cursor: pointer;">APC Effectiveness Analyzer</span>
+            <span class="text-white small ms-auto text-end" id="dataSourceDisplay"
+                style="display:none; flex:1 1 auto; max-width:calc(100vw - 220px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family: 'Courier New', monospace;"></span>
         </div>
     </nav>
 
@@ -438,6 +440,7 @@
         const vizSection = document.getElementById('vizSection');
         const effectivenessType = document.getElementById('effectivenessType');
         const pageTitle = document.getElementById('pageTitle');
+        const dataSourceDisplay = document.getElementById('dataSourceDisplay');
         const pcSearch = document.getElementById('pcSearch');
         const pcSearchBtn = document.getElementById('pcSearchBtn');
         const tabEffectiveness = document.getElementById('tab-effectiveness');
@@ -450,6 +453,27 @@
         const POINT_RADIUS = 3;
         const HOVER_RADIUS = 6;
         const SELECTED_RADIUS = 6;
+
+        const DATA_DISPLAY_MAX = 70;
+        const DATA_DISPLAY_HEAD = 35;
+        const DATA_DISPLAY_TAIL = 35;
+
+        function shortenUrl(urlText) {
+            if (urlText.length <= DATA_DISPLAY_MAX) return urlText;
+            return `${urlText.slice(0, DATA_DISPLAY_HEAD)}...${urlText.slice(-DATA_DISPLAY_TAIL)}`;
+        }
+
+        function updateDataSourceDisplay(source) {
+            if (source) {
+                const displayText = shortenUrl(source.replace(/^https?:\/\//i, ''));
+                const href = source;
+                dataSourceDisplay.innerHTML = `Data: <a href="${href}" target="_blank" rel="noopener noreferrer" style="color: white; text-decoration: underline;">${displayText}</a>`;
+                dataSourceDisplay.style.display = 'inline';
+            } else {
+                dataSourceDisplay.innerHTML = '';
+                dataSourceDisplay.style.display = 'none';
+            }
+        }
 
         // Drop zone events
         dropZone.addEventListener('click', () => fileInput.click());
@@ -548,6 +572,7 @@
                 try {
                     const jsonData = JSON.parse(text);
                     loadData(jsonData);
+                    updateDataSourceDisplay(url);
                     uploadSection.style.display = 'none';
                     appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
@@ -648,6 +673,7 @@
             vizSection.style.display = 'none';
             fileInput.value = '';
             urlInput.value = '';
+            updateDataSourceDisplay('');
             // Clear URL parameters when returning to upload screen
             window.history.replaceState({}, document.title, window.location.pathname);
         });
@@ -680,6 +706,7 @@
                 try {
                     const jsonData = JSON.parse(e.target.result);
                     loadData(jsonData);
+                    updateDataSourceDisplay('');
                     uploadSection.style.display = 'none';
                     appSection.style.display = 'block';
                     controlsSection.style.display = 'block';
