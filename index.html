@@ -1111,21 +1111,28 @@
                     const pctSaved = totalSoftwareCost > 0 ? (d.y / totalSoftwareCost * 100) : 0;
                     const pctAccel = totalSoftwareCost > 0 ? (d.beforeCum / totalSoftwareCost * 100) : 0;
 
+                    const isFirstHalf = xScale(d.x) < (width / 2);
+                    // Horizontal labels: right side for first half, left side for second half
+                    const hLabelX = isFirstHalf ? width - 5 : 5;
+                    const hAnchor = isFirstHalf ? 'end' : 'start';
                     guideHText
-                        .attr('x', 5)
+                        .attr('x', hLabelX)
                         .attr('y', yScale(d.y) - 6)
-                        .style('display', 'block')
-                        .text(`Accelerated prover cost: ${formatMetric(d.beforeCum)} (${pctAccel.toFixed(1)}%)`);
-
-                    guideHText2
-                        .attr('x', 5)
-                        .attr('y', yScale(d.y) + 14)
+                        .attr('text-anchor', hAnchor)
                         .style('display', 'block')
                         .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
 
+                    guideHText2
+                        .attr('x', hLabelX)
+                        .attr('y', yScale(d.y) + 14)
+                        .attr('text-anchor', hAnchor)
+                        .style('display', 'block')
+                        .text(`Accelerated prover cost: ${formatMetric(d.beforeCum)} (${pctAccel.toFixed(1)}%)`);
+
                     guideVText
-                        .attr('x', xScale(d.x) + 4)
+                        .attr('x', isFirstHalf ? xScale(d.x) + 4 : xScale(d.x) - 4)
                         .attr('y', 20)
+                        .attr('text-anchor', isFirstHalf ? 'start' : 'end')
                         .style('display', 'block')
                         .text(`Verifier cost: ${formatMetric(d.x)} · APCs: ${d.idx + 1}`);
                 })
