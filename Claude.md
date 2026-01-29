@@ -26,6 +26,7 @@ autoprecomile-analyzer/
   - Browser URL automatically updates when loading data via input field
   - Enables easy sharing of visualizations
 - **Format**: Expects JSON array of APC candidate objects
+- **Visual source indicator**: When data is loaded from a URL, the top navbar shows a monospace, clickable `Data: <link>` (HTTPS stripped, truncated with head/tail) so you can see exactly which source is being visualized.
 
 ### 2. Effectiveness Metrics
 The tool calculates effectiveness as a ratio (before/after) for zkVM-specific metrics:
@@ -42,6 +43,13 @@ The tool calculates effectiveness as a ratio (before/after) for zkVM-specific me
 - Color coding: Log scale based on instruction count (green=few, red=many)
 - Small blocks (<0.1% of total cells) grouped as "Other"
 - Red dashed line shows weighted mean effectiveness
+
+#### Value–Cost Plot (saved prover cost vs added verifier cost)
+- Plots cumulative saved prover cost against added verifier cost (log scale), sorted by density.
+- Hover shows guide lines and labels for:
+  - Saved prover cost with percentage and implied reduction factor: `Saved prover cost: X (Y%, Zx reduction)` where `Z = 100 / (100 − Y)`.
+  - Accelerated prover cost with percentage of software cost.
+- Point click/hover stays in sync with the bar chart selection.
 
 #### Code Panel
 - Displays actual code statements for selected basic blocks
