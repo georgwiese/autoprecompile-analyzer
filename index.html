@@ -1137,6 +1137,7 @@
 
                     const pctSaved = totalSoftwareCost > 0 ? (d.y / totalSoftwareCost * 100) : 0;
                     const pctAccel = totalSoftwareCost > 0 ? (d.beforeCum / totalSoftwareCost * 100) : 0;
+                    const reductionFactor = (100 - pctSaved) > 0 ? (100 / (100 - pctSaved)) : Infinity;
 
                     const isFirstHalf = xScale(d.x) < (width / 2);
                     // Horizontal labels: right side for first half, left side for second half
@@ -1154,7 +1155,7 @@
                         .attr('y', yScale(d.y) + 14)
                         .attr('text-anchor', hAnchor)
                         .style('display', 'block')
-                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%)`);
+                        .text(`Saved prover cost: ${formatMetric(d.y)} (${pctSaved.toFixed(1)}%, ${reductionFactor === Infinity ? '∞' : reductionFactor.toFixed(2) + 'x'} reduction)`);
 
                     guideVText
                         .attr('x', isFirstHalf ? xScale(d.x) + 4 : xScale(d.x) - 4)
