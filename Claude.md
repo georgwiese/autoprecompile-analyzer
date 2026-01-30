@@ -37,30 +37,72 @@ The tool calculates effectiveness as a ratio (before/after) for zkVM-specific me
 
 ### 3. Interactive Visualizations
 
-#### Bar Chart
-- X-axis: Cumulative instruction trace cells (software version)
-- Y-axis: Effectiveness ratio
-- Color coding: Log scale based on instruction count (green=few, red=many)
-- Small blocks (<0.1% of total cells) grouped as "Other"
-- Red dashed line shows weighted mean effectiveness
+#### Bar Chart (Effectiveness by Basic Block)
+- X-axis: Cumulative cost before acceleration (software version), labeled in B (billions)
+- Y-axis: Effectiveness ratio (typically 1-8x range)
+- Color coding: Log scale based on instruction count (green=many instructions, red=few)
+- Small blocks (<0.1% of total cells) grouped as "Other (N APCs)" gray bar on the right
+- Red dashed line shows weighted mean effectiveness (e.g., ~3.28x for Total Cost, ~3.45x for Main Columns)
+- Typical dataset: ~11,300 APC candidates, ~16.8B total cost (Total Cost metric)
 
 #### Value–Cost Plot (saved prover cost vs added verifier cost)
-- Plots cumulative saved prover cost against added verifier cost (log scale), sorted by density.
+- X-axis: Added verifier cost (log scale, typically 100 to 1M)
+- Y-axis: Saved prover cost (linear scale, with percentage guidelines at 20%, 40%, 60%, 80%)
+- Points connected by line, labeled with APC count milestones (3, 10, 30, 100, 300, 1000, 3000, 10000 APCs)
+- Shows diminishing returns: ~100 APCs saves ~60% of proving cost, ~1000 APCs reaches ~80%
+- Selected block shown as red dot on the curve
 - Hover shows guide lines and labels for:
   - Saved prover cost with percentage and implied reduction factor: `Saved prover cost: X (Y%, Zx reduction)` where `Z = 100 / (100 − Y)`.
   - Accelerated prover cost with percentage of software cost.
 - Point click/hover stays in sync with the bar chart selection.
 
+#### Labels Table (collapsible)
+- Expandable section showing function-level aggregation of blocks
+- Columns: PC (hex), Label (function name), Blocks (count), Trace Cells, Effectiveness
+- Sorted by trace cells descending by default
+- Click row to select first block in that function and scroll code panel to it
+- Common high-impact functions: `memcpy`, `memmove`, EVM transaction handlers, trie operations
+- Example row: `0x2008f8 | memcpy | 34 blocks | 2.3B trace cells | 3.96x effectiveness`
+
 #### Code Panel
 - Displays actual code statements for selected basic blocks
-- Shows PC address and instruction count
-- Updates on bar selection
+- Shows PC address, cost (software), effectiveness, and instruction count in header
+- Selected block highlighted with yellow background
+- Function labels shown as blue headers above their blocks (e.g., "memcpy")
+- Instructions shown as RISC-V assembly with operands (e.g., `STOREB rd_rs2_ptr = 44, rs1_ptr = 40, imm = 0`)
+- Updates on bar/label selection
 
-### 4. User Interactions
-- **Hover**: Highlights corresponding elements across all views
-- **Click**: Selects a block and displays its code
-- **Title Click**: Returns to upload screen
-- **Metric Switch**: Dynamically recalculates all visualizations
+### 4. Page Layout
+The visualization screen has a two-column layout:
+
+**Left Column (main content):**
+- Tab buttons to switch between "Effectiveness by Basic Block" and "Saved proving cost vs added verifier cost"
+- Active chart/plot with legend
+- Collapsible "Labels" section (click to expand/collapse)
+- "Program Code" section showing assembly for visible blocks
+
+**Right Column (sidebar):**
+- "Info" card explaining the current visualization
+- "Cost Metric" dropdown (Total Cost, Main Columns, Constraints, Bus Interactions)
+- "Block ID" input with Go button for direct navigation (hex format, e.g., `0x2008f8`)
+- "Selected Basic Block" card showing details when a block is selected:
+  - PC address, execution frequency, instruction count
+  - Cost (software/accelerated), effectiveness
+  - Verifier cost, APC size (cols, bus, constraints)
+
+### 5. User Interactions
+- **Hover**: Highlights corresponding elements across all views, shows tooltip
+- **Click**: Selects a block and displays its code, updates "Selected Basic Block" panel
+- **Title Click**: Returns to upload screen (clears data)
+- **Metric Switch**: Dynamically recalculates all visualizations, updates labels table
+- **Block ID Input**: Navigate directly to a block by PC address (hex)
+- **Label Row Click**: Selects first block of that function, scrolls code panel
+
+### 6. URL State Persistence
+The browser URL updates to reflect current state for easy sharing:
+- `?data=<url>`: Data source URL
+- `&plot=value-cost`: Current plot type (omitted for default bar chart)
+- `&block=0x2008f8`: Currently selected block PC
 
 ## Data Format
 
@@ -164,7 +206,10 @@ The `labels` field is a dictionary mapping PC addresses (as strings) to arrays o
   - Multiple labels can be associated with a single PC address
   - Examples: `["memset"]`, `["memcpy"]`, or mangled Rust function names
 
-Labels are currently stored but not yet displayed in the visualization. Future enhancements will integrate labels into the code panel and tooltips.
+Labels are displayed in:
+- The collapsible **Labels table** showing function-level aggregation with block counts and effectiveness
+- The **Code Panel** as blue headers above blocks belonging to labeled functions (e.g., "memcpy")
+- The **Selected Basic Block** panel when a labeled block is selected
 
 ## Technical Implementation
 
@@ -330,6 +375,59 @@ For files too large for direct upload (>8MB), use GitHub Gists:
 3. **Use in Analyzer**:
    - Paste the raw URL in the analyzer's URL input field
    - Or use directly: `https://USERNAME.github.io/REPO/?data=<raw-gist-url>`
+
+## Testing Changes
+
+### When to Test
+- When explicitly asked to open/test the app
+- After making changes to `index.html` that affect functionality or layout
+- Do NOT open the app for every small change - use judgment
+
+### Starting the Server
+```bash
+python3 -m http.server 8000 &
+```
+This runs a local HTTP server in the background on port 8000.
+
+### Test URL
+Use this URL to load real benchmark data (~11,300 APC candidates from reth):
+```
+http://localhost:8000/?data=https%3A%2F%2Fgithub.com%2Fpowdr-labs%2Fbench-results%2Fblob%2Fgh-pages%2Fresults%2F2026-01-27-0453%2Freth%2Fapc_candidates.json
+```
+
+Or navigate to `http://localhost:8000/` and paste this GitHub URL:
+```
+https://github.com/powdr-labs/bench-results/blob/gh-pages/results/2026-01-27-0453/reth/apc_candidates.json
+```
+
+### What to Verify
+1. **Data loading**: URL should auto-convert GitHub blob URLs to raw URLs
+2. **Bar chart**: Should show ~11,300 APCs with mean effectiveness ~3.28x (Total Cost)
+3. **Value-cost plot**: Should show curve reaching ~80% savings at 1000 APCs
+4. **Labels table**: Should expand to show function names (memcpy, memmove, etc.)
+5. **Metric switching**: Changing dropdown should update all visualizations
+6. **Block selection**: Clicking bars, labels, or using Block ID input should sync across views
+7. **Code panel**: Should show RISC-V assembly for selected blocks
+
+### Dealing with Cached Pages
+When testing changes, the browser may serve cached content. Add a cache-busting query parameter to force a fresh load:
+```
+http://localhost:8000/?data=<url>&_t=1
+```
+Increment the `_t` value for subsequent refreshes if needed.
+
+### Common Errors to Avoid
+- **CORS errors**: The app fetches remote JSON; GitHub URLs must be converted to raw URLs
+- **Missing data fields**: Ensure all required fields exist before accessing (e.g., `stats.before.main_columns`)
+- **D3.js selection issues**: Use proper enter/update/exit patterns; don't forget `.remove()` on exit
+- **Event handler leaks**: Remove old handlers before adding new ones when recreating charts
+- **Large dataset performance**: Test with full dataset (~11K items); don't assume small test data is representative
+- **URL encoding**: When building URLs with parameters, use `encodeURIComponent()` for values
+
+### Browser Tools for Debugging
+- Use Playwright MCP tools (`browser_navigate`, `browser_snapshot`, `browser_take_screenshot`)
+- Check console for errors: `browser_console_messages`
+- The snapshot output can be very large with this dataset - use `filename` parameter to save to file
 
 ## Potential Improvements
 - Export functionality for charts/data (SVG, PNG, CSV)
