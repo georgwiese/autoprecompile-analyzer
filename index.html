@@ -719,18 +719,40 @@
             reader.readAsText(file);
         }
 
+        function updateApcDataV1(apc) {
+            apc.original_block.instructions = apc.original_block.statements;
+            return apc;
+        }
+
+        // json is a direct list of APCs
+        function loadDataV0(jsonData) {
+            return { data: jsonData.map(updateApcDataV1), labels: {} };
+        }
+
+        // json with APCs and labels but no version
+        function loadDataV1(jsonData) {
+            return { data: jsonData.apcs.map(updateApcDataV1), labels: jsonData.labels };
+        }
+
+        function loadDataV2(jsonData) {
+            return { data: jsonData.apcs, labels: jsonData.labels };
+        }
+
         function loadData(jsonData) {
-            // Backwards compatible: check if it's the new format with "apcs" and "labels" keys
-            if (jsonData && typeof jsonData === 'object' && !Array.isArray(jsonData) &&
-                'apcs' in jsonData && 'labels' in jsonData) {
-                // New format
-                currentData = jsonData.apcs;
-                currentLabels = jsonData.labels;
+            // Handle backward compatibility with older json formats
+            let result;
+            if (Array.isArray(jsonData)) {
+                result = loadDataV0(jsonData);
+            } else if (!('version' in jsonData)) {
+                result = loadDataV1(jsonData);
             } else {
-                // Old format - assume it's the array of APCs directly
-                currentData = jsonData;
-                currentLabels = {};
+                switch (jsonData.version) {
+                    case 2: result = loadDataV2(jsonData); break;
+                    default: throw new Error(`Unsupported version: ${jsonData.version}`);
+                }
             }
+            currentData = result.data;
+            currentLabels = result.labels;
             // Show right-side panes when data is loaded
             document.getElementById('selectedBlockSection').style.display = 'block';
             document.getElementById('infoSection').style.display = 'block';
@@ -781,7 +803,7 @@
                 return {
                     start_pc: item.original_block.start_pc,
                     effectiveness: before / after,
-                    instructions: item.original_block.statements.length,
+                    instructions: item.original_block.instructions.length,
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
@@ -791,7 +813,7 @@
                     density,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
-                    statements: item.original_block.statements,  // Keep the code statements
+                    statements: item.original_block.instructions,  // Keep the code statements
                     stats_after: item.stats.after  // Keep APC stats
                 };
             });
@@ -910,7 +932,7 @@
                     pc: block.original_block.start_pc,
                     traceCells: block.width_before * block.execution_frequency,
                     effectiveness: calculateEffectiveness(block, effType),
-                    instructions: block.original_block.statements.length
+                    instructions: block.original_block.instructions.length
                 }));
 
                 // Sort blocks by the same criteria as the current label sort
