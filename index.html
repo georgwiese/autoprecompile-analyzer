@@ -781,7 +781,7 @@
                 return {
                     start_pc: item.original_block.start_pc,
                     effectiveness: before / after,
-                    instructions: item.original_block.statements.length,
+                    instructions: item.original_block.instructions.length,
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
@@ -791,7 +791,7 @@
                     density,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
-                    statements: item.original_block.statements,  // Keep the code statements
+                    statements: item.original_block.instructions,  // Keep the code statements
                     stats_after: item.stats.after  // Keep APC stats
                 };
             });
@@ -910,7 +910,7 @@
                     pc: block.original_block.start_pc,
                     traceCells: block.width_before * block.execution_frequency,
                     effectiveness: calculateEffectiveness(block, effType),
-                    instructions: block.original_block.statements.length
+                    instructions: block.original_block.instructions.length
                 }));
 
                 // Sort blocks by the same criteria as the current label sort
