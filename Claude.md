@@ -26,7 +26,6 @@ Two formats supported (auto-detected):
     "value": 5000,
     "cost_before": 1000.0,
     "cost_after": 500.0,
-    "apc_candidate_file": "path/to/candidate.json"
   }],
   "labels": { "2099200": ["memset"], "2099448": ["memcpy"] }
 }
