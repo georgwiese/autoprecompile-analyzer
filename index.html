@@ -734,7 +734,9 @@
             return { data: jsonData.apcs.map(updateApcDataV1), labels: jsonData.labels };
         }
 
-        function loadDataV2(jsonData) {
+        // json in version 2 or 3. The difference is that the `apc_candidate_file` field doesn't exist,
+        // which is not used in the visualization anyway, so we can use the same loader for both versions.
+        function loadDataV2V3(jsonData) {
             return { data: jsonData.apcs, labels: jsonData.labels };
         }
 
@@ -747,7 +749,8 @@
                 result = loadDataV1(jsonData);
             } else {
                 switch (jsonData.version) {
-                    case 2: result = loadDataV2(jsonData); break;
+                    case 2: result = loadDataV2V3(jsonData); break;
+                    case 3: result = loadDataV2V3(jsonData); break;
                     default: throw new Error(`Unsupported version: ${jsonData.version}`);
                 }
             }
