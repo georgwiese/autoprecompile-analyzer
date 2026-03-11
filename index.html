@@ -740,6 +740,22 @@
             return { data: jsonData.apcs, labels: jsonData.labels };
         }
 
+        // v4: original_blocks (plural, array) instead of original_block (singular).
+        // Normalize to original_block by using first block's start_pc and concatenating instructions.
+        function loadDataV4(jsonData) {
+            const apcs = jsonData.apcs.map(apc => {
+                const blocks = apc.original_blocks;
+                return {
+                    ...apc,
+                    original_block: {
+                        start_pc: blocks[0].start_pc,
+                        instructions: blocks.flatMap(b => b.instructions)
+                    }
+                };
+            });
+            return { data: apcs, labels: jsonData.labels || {} };
+        }
+
         function loadData(jsonData) {
             // Handle backward compatibility with older json formats
             let result;
@@ -751,6 +767,7 @@
                 switch (jsonData.version) {
                     case 2: result = loadDataV2V3(jsonData); break;
                     case 3: result = loadDataV2V3(jsonData); break;
+                    case 4: result = loadDataV4(jsonData); break;
                     default: throw new Error(`Unsupported version: ${jsonData.version}`);
                 }
             }
