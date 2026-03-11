@@ -10,14 +10,18 @@ CLAUDE.md           # This file
 
 ## Data Format
 
-Two formats supported (auto-detected):
+Current version:
 
-**New format** (object with `apcs` and `labels`):
+**Version 4** (current): Each APC is a *superblock* composed of one or more basic blocks.
 ```json
 {
+  "version": 4,
   "apcs": [{
     "execution_frequency": 50000,
-    "original_block": { "start_pc": 12345, "statements": ["instr1", "instr2"] },
+    "original_blocks": [
+      { "start_pc": 12345, "instructions": ["instr1", "instr2"] },
+      { "start_pc": 12360, "instructions": ["instr3"] }
+    ],
     "stats": {
       "before": { "main_columns": 100, "constraints": 200, "bus_interactions": 50 },
       "after": { "main_columns": 50, "constraints": 100, "bus_interactions": 25 }
@@ -31,7 +35,12 @@ Two formats supported (auto-detected):
 }
 ```
 
-**Old format**: Same structure as `apcs` array above, without wrapper object. Labels will be empty.
+All older formats are normalized to `original_blocks` on load:
+- **Versions 2 & 3**: `original_block: { start_pc, instructions }` → wrapped in a 1-element array
+- **Version 1** (no `version` field): `original_block` with `statements` → `original_blocks[0]` with `instructions`
+- **Version 0** (bare array): same as v1 without wrapper, no labels
+
+**Visualization model**: A block's identity is its `block_id` — a comma-separated list of hex PCs (e.g., `0x3000,0x3050`). `start_pc` is the first basic block's PC (used for sorting/display). Multiple blocks may share the same basic block PC.
 
 ## Testing
 

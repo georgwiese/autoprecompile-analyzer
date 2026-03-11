@@ -411,7 +411,7 @@
 
                     <div id="selectedBlockSection" class="mb-4" style="display: none;">
                         <div class="chart-container">
-                            <h5>Selected Basic Block</h5>
+                            <h5>Selected Block</h5>
                             <div class="mb-2">
                                 <span id="codeBlockInfo" class="text-muted">Click on a bar or code line to select a
                                     block</span>
@@ -596,13 +596,13 @@
 
         effectivenessType.addEventListener('change', () => {
             if (currentData) {
-                const selectedPc = selectedBlock ? selectedBlock.start_pc : null;
+                const selectedId = selectedBlock ? selectedBlock.block_id : null;
                 updateVisualization();
 
                 // Restore selection if it exists
-                if (selectedPc) {
+                if (selectedId) {
                     const data = processData();
-                    const block = data.find(d => d.start_pc === selectedPc);
+                    const block = data.find(d => d.block_id === selectedId);
                     if (block) {
                         selectBlock(block);
                     }
@@ -644,14 +644,15 @@
                 return;
             }
 
-            // Find the block that contains this PC
+            // Find the superblock that contains this PC in any of its basic blocks
             // Each instruction is 4 bytes, so PC advances by 4
             const data = processData();
             const block = data.find(d => {
                 if (d.is_other) return false; // Skip "Other" grouped blocks
-                const startPc = d.start_pc;
-                const endPc = startPc + (d.instructions * 4);
-                return pcValue >= startPc && pcValue < endPc;
+                return d.original_blocks.some(b => {
+                    const endPc = b.start_pc + b.instructions.length * 4;
+                    return pcValue >= b.start_pc && pcValue < endPc;
+                });
             });
 
             if (block) {
@@ -720,7 +721,11 @@
         }
 
         function updateApcDataV1(apc) {
-            apc.original_block.instructions = apc.original_block.statements;
+            // Normalize old single-block format into original_blocks array
+            apc.original_blocks = [{
+                start_pc: apc.original_block.start_pc,
+                instructions: apc.original_block.statements,
+            }];
             return apc;
         }
 
@@ -737,6 +742,15 @@
         // json in version 2 or 3. The difference is that the `apc_candidate_file` field doesn't exist,
         // which is not used in the visualization anyway, so we can use the same loader for both versions.
         function loadDataV2V3(jsonData) {
+            const apcs = jsonData.apcs.map(apc => {
+                apc.original_blocks = [apc.original_block];
+                return apc;
+            });
+            return { data: apcs, labels: jsonData.labels };
+        }
+
+        // json in version 4: original_blocks is a list of BasicBlocks (may be more than one).
+        function loadDataV4(jsonData) {
             return { data: jsonData.apcs, labels: jsonData.labels };
         }
 
@@ -820,10 +834,16 @@
                 const metric_after = after * item.execution_frequency;
                 const value = (before - after) * item.execution_frequency;
                 const density = metric_after > 0 ? value / after : 0;
+                const lastBlock = item.original_blocks[item.original_blocks.length - 1];
+                const block_pcs = item.original_blocks.map(b => b.start_pc);
                 return {
-                    start_pc: item.original_block.start_pc,
+                    start_pc: item.original_blocks[0].start_pc,
+                    block_id: block_pcs.map(pc => '0x' + pc.toString(16)).join(','),
+                    block_pcs,
+                    original_blocks: item.original_blocks,
+                    end_pc: lastBlock.start_pc + lastBlock.instructions.length * 4,
                     effectiveness: before / after,
-                    instructions: item.original_block.instructions.length,
+                    instructions: item.original_blocks.reduce((sum, b) => sum + b.instructions.length, 0),
                     software_version_cells: metric_before, // alias used throughout charting
                     metric_before,
                     metric_after,
@@ -833,7 +853,7 @@
                     density,
                     width_before: item.width_before,
                     execution_frequency: item.execution_frequency,
-                    statements: item.original_block.instructions,  // Keep the code statements
+                    statements: item.original_blocks.flatMap(b => b.instructions),  // flat list for legacy uses
                     stats_after: item.stats.after  // Keep APC stats
                 };
             });
@@ -873,8 +893,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const blockParam = urlParams.get('block');
             if (blockParam) {
-                const blockPc = parseInt(blockParam, 16);
-                const block = data.find(d => d.start_pc === blockPc);
+                // blockParam is a comma-separated list of hex PCs (block_id)
+                const block = data.find(d => d.block_id === blockParam);
                 if (block) {
                     selectBlock(block);
                 }
@@ -887,7 +907,7 @@
 
             // Sort blocks by PC to process them in order
             const sortedBlocks = [...currentData].sort((a, b) =>
-                a.original_block.start_pc - b.original_block.start_pc
+                a.original_blocks[0].start_pc - b.original_blocks[0].start_pc
             );
 
             // Track current active label(s)
@@ -895,18 +915,21 @@
 
             // Iterate through all blocks in PC order
             sortedBlocks.forEach(item => {
-                const pcKey = item.original_block.start_pc.toString();
+                // Check all basic block PCs for label matches
+                const matchingPcKey = item.original_blocks
+                    .map(b => b.start_pc.toString())
+                    .find(key => currentLabels[key] && currentLabels[key].length > 0);
 
                 // Check if this block starts a new label
-                if (currentLabels[pcKey] && currentLabels[pcKey].length > 0) {
-                    currentActiveLabels = currentLabels[pcKey];
+                if (matchingPcKey) {
+                    currentActiveLabels = currentLabels[matchingPcKey];
 
                     // Initialize label stats if needed
                     currentActiveLabels.forEach(label => {
                         if (!labelStats[label]) {
                             labelStats[label] = {
                                 label: label,
-                                pc: item.original_block.start_pc,
+                                pc: item.original_blocks[0].start_pc,
                                 blocks: [],
                                 totalTraceCells: 0,
                                 totalCostBefore: 0,
@@ -949,10 +972,11 @@
             const labelArray = Object.values(labelStats).map(stat => {
                 // Process and sort blocks
                 const processedBlocks = stat.blocks.map(block => ({
-                    pc: block.original_block.start_pc,
+                    pc: block.original_blocks[0].start_pc,
+                    block_pcs: block.original_blocks.map(b => b.start_pc),
                     traceCells: block.width_before * block.execution_frequency,
                     effectiveness: calculateEffectiveness(block, effType),
-                    instructions: block.original_block.instructions.length
+                    instructions: block.original_blocks.reduce((sum, b) => sum + b.instructions.length, 0)
                 }));
 
                 // Sort blocks by the same criteria as the current label sort
@@ -1143,15 +1167,18 @@
                 .attr('stroke', baseColor)
                 .attr('stroke-width', 1)
                 .on('mouseover', function (event, d) {
-                    const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                    const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.block_id === d.block.block_id;
                     d3.select(this)
                         .attr('r', isSelected ? SELECTED_RADIUS : HOVER_RADIUS)
                         .attr('fill', isSelected ? selectedColor : hoverColor)
                         .attr('stroke', isSelected ? selectedColor : hoverColor);
                     tooltip.transition().duration(200).style('opacity', 0.9);
                     const b = d.block;
+                    const bPcsDisplay = b.block_pcs.length === 1
+                        ? `0x${b.start_pc.toString(16)}`
+                        : b.block_pcs.map(pc => '0x' + pc.toString(16)).join(', ');
                     tooltip.html(
-                        `<strong>PC: 0x${b.start_pc.toString(16)}</strong><br/>
+                        `<strong>PC: ${bPcsDisplay}</strong><br/>
                          Execution frequency: ${formatMetric(b.execution_frequency)}<br/>
                          Instructions: ${b.instructions}<br/>
                          Cost (software version): ${formatMetric(b.metric_before)}<br/>
@@ -1436,7 +1463,7 @@
                     if (e.target.closest('td:first-child')) return; // Ignore if clicking expand cell
                     const pc = parseInt(this.getAttribute('data-pc'));
                     const data = processData();
-                    const block = data.find(d => d.start_pc === pc);
+                    const block = data.find(d => d.block_pcs && d.block_pcs.includes(pc));
                     if (block) {
                         selectBlock(block);
                     }
@@ -1448,7 +1475,7 @@
                 tr.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-block-pc'));
                     const data = processData();
-                    const block = data.find(d => d.start_pc === pc);
+                    const block = data.find(d => d.block_pcs && d.block_pcs.includes(pc));
                     if (block) {
                         selectBlock(block);
                     }
@@ -1475,10 +1502,10 @@
             });
         }
 
-        function highlightElements(startPc, isHover = true) {
+        function highlightElements(blockId, isHover = true) {
             // Highlight corresponding bar
             d3.selectAll('.bar')
-                .classed('bar-highlight', d => d.start_pc === startPc);
+                .classed('bar-highlight', d => d.block_id === blockId);
         }
 
         function clearHighlights() {
@@ -1488,7 +1515,7 @@
         function updateBarSelection() {
             if (!selectedBlock || selectedBlock.is_other) return;
             d3.selectAll('.bar')
-                .classed('bar-selected', d => d.start_pc === selectedBlock.start_pc);
+                .classed('bar-selected', d => d.block_id === selectedBlock.block_id);
         }
 
         function updateInfoText() {
@@ -1505,7 +1532,7 @@
             const baseColor = '#0d6efd';
             const selectedColor = '#d32f2f';
             d3.selectAll('.value-point').each(function (d) {
-                const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.start_pc === d.block.start_pc;
+                const isSelected = selectedBlock && !selectedBlock.is_other && selectedBlock.block_id === d.block.block_id;
                 d3.select(this)
                     .attr('fill', isSelected ? selectedColor : baseColor)
                     .attr('stroke', isSelected ? selectedColor : baseColor)
@@ -1526,12 +1553,12 @@
             if (blockData && !blockData.is_other) {
                 // Highlight selected bar
                 d3.selectAll('.bar')
-                    .classed('bar-selected', d => d.start_pc === blockData.start_pc);
+                    .classed('bar-selected', d => d.block_id === blockData.block_id);
 
-                // Update URL with block parameter
-                newUrl.searchParams.set('block', '0x' + blockData.start_pc.toString(16));
+                // Update URL with block parameter (block_id is comma-separated hex PCs)
+                newUrl.searchParams.set('block', blockData.block_id);
 
-                // Update the PC search input field
+                // Update the PC search input field with the entry PC
                 pcSearch.value = '0x' + blockData.start_pc.toString(16);
             } else {
                 // Clear block parameter if deselecting or selecting "Other"
@@ -1560,11 +1587,11 @@
             allBlocks.forEach((block, index) => {
                 if (block.is_other) return; // Skip "Other" grouped blocks
 
-                // Check for gap between previous block and current block
+                // Check for gap between previous superblock and current superblock
                 if (index > 0) {
                     const prevBlock = allBlocks[index - 1];
                     if (!prevBlock.is_other) {
-                        const prevBlockEnd = prevBlock.start_pc + (prevBlock.instructions * 4);
+                        const prevBlockEnd = prevBlock.end_pc;
                         const gap = block.start_pc - prevBlockEnd;
                         const missingInstructions = gap / 4;
 
@@ -1578,29 +1605,41 @@
                     }
                 }
 
-                // Check if this block's start_pc has labels
-                const pcKey = block.start_pc.toString();
+                // Check all basic block PCs for labels
                 let labelData = '';
-                if (currentLabels[pcKey] && currentLabels[pcKey].length > 0) {
-                    const labels = currentLabels[pcKey];
-                    const labelsHtml = labels.map(label =>
-                        `<div class="label-name">${escapeHtml(label)}</div>`
-                    ).join('');
-                    // Store labels as JSON array to preserve them correctly
-                    labelData = JSON.stringify(labels);
-                    codeHtml += `
-                        <div class="label-line" data-pc="${block.start_pc}" data-labels='${labelData}'>
-                            ${labelsHtml}
-                        </div>
-                    `;
+                for (const basicBlock of block.original_blocks) {
+                    const pcKey = basicBlock.start_pc.toString();
+                    if (currentLabels[pcKey] && currentLabels[pcKey].length > 0) {
+                        const labels = currentLabels[pcKey];
+                        const labelsHtml = labels.map(label =>
+                            `<div class="label-name">${escapeHtml(label)}</div>`
+                        ).join('');
+                        labelData = JSON.stringify(labels);
+                        codeHtml += `
+                            <div class="label-line" data-pc="${block.start_pc}" data-labels='${labelData}'>
+                                ${labelsHtml}
+                            </div>
+                        `;
+                        break; // Use first matching label for the sticky header
+                    }
                 }
 
-                const blockId = `block-${block.start_pc}`;
-                const headerText = `PC: 0x${block.start_pc.toString(16)} | Cost (software): ${formatMetric(block.metric_before)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
+                const blockId = `block-${block.block_pcs.join('_')}`;
+                const pcsText = block.block_pcs.length === 1
+                    ? `PC: 0x${block.start_pc.toString(16)}`
+                    : `PCs: ${block.block_pcs.map(pc => '0x' + pc.toString(16)).join(', ')}`;
+                const headerText = `${pcsText} | Cost (software): ${formatMetric(block.metric_before)} | Effectiveness: ${block.effectiveness.toFixed(2)} | Instructions: ${block.instructions}`;
 
-                const linesHtml = block.statements.map((stmt, idx) =>
-                    `<div class="code-line" data-pc="${block.start_pc}" data-line="${idx}">${escapeHtml(stmt)}</div>`
-                ).join('');
+                // Render each basic block as a sub-section within the superblock
+                const linesHtml = block.original_blocks.map((basicBlock, bbIdx) => {
+                    const subHeader = block.original_blocks.length > 1
+                        ? `<div style="padding: 2px 8px; font-size: 0.8em; color: #888; border-top: 1px dashed #ccc; margin-top: 2px;">basic block 0x${basicBlock.start_pc.toString(16)}</div>`
+                        : '';
+                    const instrs = basicBlock.instructions.map((stmt, idx) =>
+                        `<div class="code-line" data-pc="${basicBlock.start_pc}" data-line="${idx}">${escapeHtml(stmt)}</div>`
+                    ).join('');
+                    return subHeader + instrs;
+                }).join('');
 
                 codeHtml += `
                     <div class="code-block" id="${blockId}" data-pc="${block.start_pc}" data-labels='${labelData}'>
@@ -1616,7 +1655,7 @@
             document.querySelectorAll('.code-line').forEach(line => {
                 line.addEventListener('click', function () {
                     const pc = parseInt(this.getAttribute('data-pc'));
-                    const blockData = allBlocks.find(b => b.start_pc === pc);
+                    const blockData = allBlocks.find(b => b.block_pcs && b.block_pcs.includes(pc));
                     if (blockData) {
                         selectBlock(blockData);
                     }
@@ -1643,7 +1682,7 @@
             if (pc) {
                 const pcValue = parseInt(pc);
                 const data = processData();
-                const block = data.find(d => d.start_pc === pcValue);
+                const block = data.find(d => d.block_pcs && d.block_pcs.includes(pcValue));
 
                 if (block) {
                     selectBlock(block);
@@ -1730,8 +1769,11 @@
                 return;
             }
 
+            const pcsDisplay = blockData.block_pcs.length === 1
+                ? `0x${blockData.start_pc.toString(16)}`
+                : blockData.block_pcs.map(pc => '0x' + pc.toString(16)).join(', ');
             codeInfo.innerHTML = `
-                <strong>Block at PC: 0x${blockData.start_pc.toString(16)}</strong><br/>
+                <strong>Block at PC: ${pcsDisplay}</strong><br/>
                 <span>Execution frequency: ${formatMetric(blockData.execution_frequency)}</span><br/>
                 <span>Instructions: ${blockData.instructions}</span><br/>
                 <span>Cost (software version): ${formatMetric(blockData.metric_before)}</span><br/>
@@ -1741,8 +1783,8 @@
                 <span>APC size: ${blockData.stats_after.main_columns} cols, ${blockData.stats_after.bus_interactions} bus, ${blockData.stats_after.constraints} constraints</span>
             `;
 
-            // Highlight the selected block
-            const blockElement = document.getElementById(`block-${blockData.start_pc}`);
+            // Highlight the selected superblock
+            const blockElement = document.getElementById(`block-${blockData.block_pcs.join('_')}`);
             if (blockElement) {
                 blockElement.classList.add('selected');
 
@@ -1926,7 +1968,10 @@
                                   Verifier cost (accelerated): n/a<br/>
                                   APC size (total): ${d.stats_after.main_columns || 'N/A'} cols, ${d.stats_after.bus_interactions || 'N/A'} bus, ${d.stats_after.constraints || 'N/A'} constraints`;
                     } else {
-                        content = `<strong>PC: 0x${d.start_pc.toString(16)}</strong><br/>
+                        const dPcsDisplay = d.block_pcs.length === 1
+                            ? `0x${d.start_pc.toString(16)}`
+                            : d.block_pcs.map(pc => '0x' + pc.toString(16)).join(', ');
+                        content = `<strong>PC: ${dPcsDisplay}</strong><br/>
                                   Execution frequency: ${formatMetric(d.execution_frequency)}<br/>
                                   Instructions: ${d.instructions}<br/>
                                   Cost (software version): ${formatMetric(d.metric_before)}<br/>
@@ -1942,7 +1987,7 @@
 
                     // Highlight elements (but don't change code on hover if something is selected)
                     if (!d.is_other) {
-                        highlightElements(d.start_pc, true);
+                        highlightElements(d.block_id, true);
                     }
                 })
                 .on('mouseout', function (d) {
@@ -1956,7 +2001,7 @@
                 })
                 .on('click', function (event, d) {
                     event.stopPropagation();
-                    // Select this block on click
+                    // Select this superblock on click
                     selectBlock(d);
                 });
 
