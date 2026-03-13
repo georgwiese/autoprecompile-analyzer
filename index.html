@@ -750,7 +750,19 @@
         }
 
         // json in version 4: original_blocks is a list of BasicBlocks (may be more than one).
+        // Two sub-formats exist:
+        //   - blocks have start_pc and instructions are plain strings
+        //   - blocks lack start_pc and instructions are [pc, string] tuples
+        // Normalize the latter into the former.
         function loadDataV4(jsonData) {
+            for (const apc of jsonData.apcs) {
+                for (const block of apc.original_blocks) {
+                    if (!('start_pc' in block) && block.instructions.length > 0 && Array.isArray(block.instructions[0])) {
+                        block.start_pc = block.instructions[0][0];
+                        block.instructions = block.instructions.map(instr => instr[1]);
+                    }
+                }
+            }
             return { data: jsonData.apcs, labels: jsonData.labels };
         }
 
